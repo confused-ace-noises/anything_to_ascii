@@ -1,5 +1,6 @@
 #![allow(dead_code, non_upper_case_globals)]
 
+use colored::{ColoredString, Colorize, CustomColor};
 use std::u8;
 
 static char_empty: char = ' ';
@@ -61,45 +62,110 @@ impl DensityChar {
         }
     }
 
-    pub fn get_char_from_u8(n: u8, invert: bool) -> char {
-        if !invert {
-            match n {
-                0 => char_empty,
-                1..17 => char0_17,
-                17..34 => char17_34,
-                34..51 => char34_51,
-                51..68 => char51_68,
-                68..85 => char68_85,
-                85..102 => char85_102,
-                102..119 => char102_119,
-                119..136 => char119_136,
-                136..153 => char136_153,
-                153..170 => char153_170,
-                170..187 => char170_187,
-                187..204 => char187_204,
-                204..221 => char204_221,
-                221..238 => char221_238,
-                238..=255 => char238_255,
+    pub fn get_char_from_u8(n: u8, invert: bool, color: CustomColor) -> ColorChar {
+        let ch = {
+            if !invert {
+                match n {
+                    0 => char_empty,
+                    1..17 => char0_17,
+                    17..34 => char17_34,
+                    34..51 => char34_51,
+                    51..68 => char51_68,
+                    68..85 => char68_85,
+                    85..102 => char85_102,
+                    102..119 => char102_119,
+                    119..136 => char119_136,
+                    136..153 => char136_153,
+                    153..170 => char153_170,
+                    170..187 => char170_187,
+                    187..204 => char187_204,
+                    204..221 => char204_221,
+                    221..238 => char221_238,
+                    238..=255 => char238_255,
+                }
+            } else {
+                match n {
+                    0..17 => char238_255,
+                    17..34 => char221_238,
+                    34..51 => char204_221,
+                    51..68 => char187_204,
+                    68..85 => char170_187,
+                    85..102 => char153_170,
+                    102..119 => char136_153,
+                    119..136 => char119_136,
+                    136..153 => char102_119,
+                    153..170 => char85_102,
+                    170..187 => char68_85,
+                    187..204 => char51_68,
+                    204..221 => char34_51,
+                    221..238 => char17_34,
+                    238..255 => char0_17,
+                    255 => char_empty,
+                }
             }
-        } else {
-            match n {
-                0..17 => char238_255,
-                17..34 => char221_238,
-                34..51 => char204_221,
-                51..68 => char187_204,
-                68..85 => char170_187,
-                85..102 => char153_170,
-                102..119 => char136_153,
-                119..136 => char119_136,
-                136..153 => char102_119,
-                153..170 => char85_102,
-                170..187 => char68_85,
-                187..204 => char51_68,
-                204..221 => char34_51,
-                221..238 => char17_34,
-                238..255 => char0_17,
-                255 => char_empty,
-            }
-        }
+        };
+
+        ColorChar::new(ch, color)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ColorChar {
+    ch: char,
+    color: CustomColor,
+}
+
+impl ColorChar {
+    pub fn new(ch: char, color: CustomColor) -> Self {
+        ColorChar { ch, color }
+    }
+
+    pub fn to_string(&self) -> ColoredString {
+        let ch = self.ch;
+        let color = self.color;
+
+        ch.to_string().custom_color(color)
+    }
+}
+
+pub trait JoinColored {
+    fn custom_join(&self, separator: &str) -> String;
+}
+
+impl JoinColored for Vec<ColoredString> {
+    fn custom_join(&self, separator: &str) -> String {
+        let x = String::from(separator);
+        let mut final_string = String::new();
+
+        for y in self.iter() {
+            final_string = format!("{}{}{}",final_string,x.clone(),y);
+        }
+
+        final_string
+    }
+}
+
+impl JoinColored for Vec<String> {
+    fn custom_join(&self, separator: &str) -> String {
+        let x = String::from(separator);
+        let mut final_string = String::new();
+
+        for y in self.iter() {
+            final_string = format!("{}{}{}",final_string,x.clone(),y);
+        }
+
+        final_string
+    }
+}
+
+#[test]
+fn something() {
+    let red_text = "Red".red();
+    let green_text = "Green".green();
+    let blue_text = "Blue".blue();
+
+    // Concatenate while preserving colors
+    let concatenated = format!("{} {} {}", red_text, green_text, blue_text);
+
+    println!("{}", concatenated);
 }
