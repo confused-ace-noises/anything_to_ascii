@@ -9,11 +9,11 @@ pub struct Cli {
 
     /// The number of vertical characters. If only the horizontal number of pixels is provided, this one will be inferred to try to maintain the best proportions possible.
     #[arg(short, long)]
-    pub vertical: Option<usize>,
+    pub vertical: Option<u32>,
     
     /// The number of horizontal characters. If only the vertical number of pixels is provided, this one will be inferred to try to maintain the best proportions possible.
     #[arg(short = 'o', long)]
-    pub horizontal: Option<usize>,
+    pub horizontal: Option<u32>,
 
     /// Whether to invert the image. (dark areas become lighter and vice-versa)
     #[arg(long)]

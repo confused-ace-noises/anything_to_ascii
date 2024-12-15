@@ -1,5 +1,6 @@
 use colored::CustomColor;
 use image::{GenericImageView, ImageReader, Pixel, Rgba};
+use rayon::prelude::*;
 use std::error::Error;
 
 use crate::{ColorChar, DensityChar};
@@ -48,15 +49,21 @@ impl AsciiImg {
         let (final_height, final_width) = match (target_height, target_width) {
             (None, None) => (height as usize, width as usize),
             (Some(v), None) => {
-                let ratio = height as f32/width as f32;
+                let ratio = height as f32 / width as f32;
                 println!("{}", ratio);
-                (v, (((v as f32 / ratio) * 2.0).floor() as usize).clamp(1, width as usize))
-            },
+                (
+                    v,
+                    (((v as f32 / ratio) * 2.0).floor() as usize).clamp(1, width as usize),
+                )
+            }
             (None, Some(h)) => {
-                let ratio = height as f32/width as f32;
+                let ratio = height as f32 / width as f32;
 
-                ((((h as f32 * ratio) / 2.0).ceil() as usize).clamp(1, height as usize), h)
-            },
+                (
+                    (((h as f32 * ratio) / 2.0).ceil() as usize).clamp(1, height as usize),
+                    h,
+                )
+            }
             (Some(v), Some(h)) => (v.clamp(1, height as usize), h.clamp(1, width as usize)),
         };
         println!("height: {}, width: {}", final_height, final_width);
@@ -98,7 +105,14 @@ impl AsciiImg {
                 out_row.push(
                     buffer
                         .into_iter()
-                        .map(|pair| {if grayscale {(pair.calc_penalty(), CustomColor::new(255, 255, 255))} else { let x = pair.channels(); (pair.calc_penalty(), CustomColor::new(x[0], x[1], x[2]))}})
+                        .map(|pair| {
+                            if grayscale {
+                                (pair.calc_penalty(), CustomColor::new(255, 255, 255))
+                            } else {
+                                let x = pair.channels();
+                                (pair.calc_penalty(), CustomColor::new(x[0], x[1], x[2]))
+                            }
+                        })
                         .collect::<Vec<(u8, CustomColor)>>()
                         .average(),
                 );
@@ -122,6 +136,121 @@ impl AsciiImg {
                 .collect::<Vec<Vec<ColorChar>>>(),
         })
     }
+
+    pub fn new_parallel(
+        path: String,
+        target_height: Option<u32>,
+        target_width: Option<u32>,
+        invert: bool,
+        grayscale: bool,
+        uniform: bool,
+    ) -> Result<AsciiImg, Box<dyn Error>> {
+        // gets image and converts it into grayscale if needed
+        let img = {
+            let img = ImageReader::open(path)?.decode()?;
+            if grayscale {
+                img.grayscale()
+            } else {
+                img
+            }
+        };
+
+        let (src_width, src_height) = img.dimensions();
+
+        let (final_height, final_width) =
+            (target_width, target_height).demure_unwrap(src_width, src_height);
+            // (target_height, target_width).demure_unwrap(src_width, src_height);
+        let (final_width, final_height) = (final_width as usize, final_height as usize);
+
+        // ------
+
+        // creates and populates the Vec<Vec<_>> that holds the pixels
+        let mut pixels = vec![vec![Rgba([0_u8; 4]); src_width as usize]; src_height as usize];
+
+        // Parallelize over rows (outer Vec)
+        pixels
+            .par_iter_mut()
+            .enumerate() // Get both the row index and the mutable reference
+            .for_each(|(row_idx, row)| {
+                for col_idx in 0..src_width {
+                    // Calculate the corresponding (x, y) in the original image
+                    // let x = col_idx.min(img.width() as usize - 1);
+                    // let y = row_idx.min(img.height() as usize - 1);
+
+                    // Assign the pixel value to the corresponding cell
+                    row[col_idx as usize] = img.get_pixel(col_idx as u32, row_idx as u32);
+                }
+            });
+
+
+        // ------
+
+        let scale_x = ((src_width as f32 / final_width as f32).ceil() as usize).max(1);
+        let scale_y = ((src_height as f32 / final_height as f32).ceil() as usize).max(1);
+
+        #[rustfmt::skip]
+        let output: Vec<Vec<ColorChar>> = (0..final_height)
+            .into_par_iter()
+            .map(|big_px_h| {
+                (0..final_width)
+                    .into_par_iter()
+                    .map(|big_px_w| {
+                        let thing = (0..scale_y).into_par_iter().map(|inner_y| {
+                            (0..scale_x).into_par_iter().map(|inner_x| {
+                                let indx_height = ((big_px_h * scale_y) + inner_y) as usize;
+                                let indx_width = ((big_px_w * scale_x) + inner_x) as usize;
+                                
+                                if indx_height < src_height as usize && indx_width < src_width as usize {
+                                    pixels[indx_height][indx_width]
+                                } else {
+                                    Rgba::from([128, 128, 128, 0])
+                                }
+                            }).collect::<Vec<Rgba<u8>>>()
+                        }).flatten().map(|x| if grayscale { (x.calc_penalty(), CustomColor::new(255, 255, 255))} else { let z = x.channels(); (x.calc_penalty(), CustomColor::new(z[0], z[1], z[2]))}).collect::<Vec<(u8, CustomColor)>>().average();
+
+                        DensityChar::get_char_from_u8(thing.0, invert, thing.1, uniform)
+                    })
+                    .collect::<Vec<ColorChar>>() // Collect the row
+            })
+            .collect::<Vec<Vec<ColorChar>>>();
+
+        Ok(AsciiImg {
+            height: target_height.and_then(|u| Some(u as usize)), 
+            width: target_width.and_then(|u| Some(u as usize)), 
+            pixels: output 
+        })
+    }
+}
+
+pub trait DemureUnwrap<T> {
+    fn demure_unwrap(&self, src_width: T, src_height: T) -> (T, T);
+}
+
+impl DemureUnwrap<u32> for (Option<u32>, Option<u32>) {
+    fn demure_unwrap(&self, src_width: u32, src_height: u32) -> (u32, u32) {
+        match self {
+            (None, None) => return (src_width, src_height),
+            (None, Some(height)) => {
+                let ratio = src_height as f32 / src_width as f32;
+                let height = *height;
+
+                (
+                    (((height as f32 / ratio) * 2.0).ceil() as u32).clamp(1, src_height),
+                    height,
+                )
+            }
+            (Some(width), None) => {
+                let ratio = src_height as f32 / src_width as f32;
+                let width = *width;
+
+                (
+                    width,
+                    (((width as f32 * ratio) / 2.0).ceil() as u32).clamp(1, src_height),
+                )
+            }
+            (Some(width), Some(height)) => (*width, *height),
+        }
+    }
 }
 
 pub trait Average {
@@ -144,7 +273,7 @@ impl Average for Vec<CustomColor> {
         let len = self.len() as f32;
         let mut r: usize = 0;
         let mut g: usize = 0;
-        let mut b: usize= 0;
+        let mut b: usize = 0;
 
         self.iter().for_each(|k| {
             r += k.r as usize;
@@ -152,7 +281,11 @@ impl Average for Vec<CustomColor> {
             b += k.b as usize;
         });
 
-        CustomColor::new((r as f32 / len).round_ties_even() as u8, (g as f32 / len).round_ties_even() as u8,  (b as f32 / len).round_ties_even() as u8)
+        CustomColor::new(
+            (r as f32 / len).round_ties_even() as u8,
+            (g as f32 / len).round_ties_even() as u8,
+            (b as f32 / len).round_ties_even() as u8,
+        )
     }
 }
 
@@ -175,9 +308,9 @@ pub trait GenAscii {
 
 impl GenAscii for Vec<Vec<char>> {
     fn gen_ascii(&self) -> String {
-        self.iter()
+        self.into_par_iter()
             .map(|vec| {
-                vec.iter()
+                vec.into_par_iter()
                     .map(|c| c.to_string())
                     .collect::<Vec<String>>()
                     .join("")
@@ -224,13 +357,20 @@ impl Penalty for Rgba<u8> {
 
 pub fn convert(
     path: String,
-    target_height: Option<usize>,
-    target_width: Option<usize>,
+    target_height: Option<u32>,
+    target_width: Option<u32>,
     invert: bool,
     grayscale: bool,
     uniform: bool,
 ) -> Result<String, Box<dyn Error>> {
-    let ascii = AsciiImg::new(path, target_height, target_width, invert, grayscale, uniform)?;
+    let ascii = AsciiImg::new_parallel(
+        path,
+        target_height,
+        target_width,
+        invert,
+        grayscale,
+        uniform,
+    )?;
     //todo!()
     Ok(ascii.pixels.gen_ascii())
 }
