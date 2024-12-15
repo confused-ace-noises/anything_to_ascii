@@ -1,9 +1,8 @@
-use clap::builder::styling::Color;
-use colored::{ColoredString, CustomColor};
+use colored::CustomColor;
 use image::{GenericImageView, ImageReader, Pixel, Rgba};
 use std::error::Error;
 
-use crate::{ColorChar, DensityChar, JoinColored};
+use crate::{ColorChar, DensityChar};
 
 #[derive(Debug, Clone)]
 pub struct AsciiImg {
@@ -18,6 +17,7 @@ impl AsciiImg {
         target_width: Option<usize>,
         invert: bool,
         grayscale: bool,
+        uniform: bool,
     ) -> Result<AsciiImg, Box<dyn Error>> {
         let target_image = path;
 
@@ -29,15 +29,12 @@ impl AsciiImg {
             img = ImageReader::open(target_image)?.decode()?;
         }
 
-        // let (height, width) = img.dimensions();
         let (width, height) = img.dimensions();
-
-        // println!("{}, {}", width, height);
 
         let mut pixels: Vec<Vec<Rgba<u8>>> = Vec::new();
 
         for y in 0..height {
-            let mut inner_vec = vec![];
+            let mut inner_vec = Vec::new();
             for x in 0..width {
                 // Get the pixel as an RGBA tuple
                 let pixel = img.get_pixel(x, y);
@@ -47,27 +44,22 @@ impl AsciiImg {
             pixels.push(inner_vec);
         }
 
-        let (height, width) = (
-            target_height.unwrap_or(height as usize),
-            target_width.unwrap_or(width as usize),
-        );
+        println!("height: {}, width: {}", height, width);
+        let (final_height, final_width) = match (target_height, target_width) {
+            (None, None) => (height as usize, width as usize),
+            (Some(v), None) => {
+                let ratio = height as f32/width as f32;
+                println!("{}", ratio);
+                (v, (((v as f32 / ratio) * 2.0).floor() as usize).clamp(1, width as usize))
+            },
+            (None, Some(h)) => {
+                let ratio = height as f32/width as f32;
 
-        // // -------------------------------------------------------------
-
-        // let pixels = pixels
-        //     .into_iter()
-        //     .map(|v| {
-        //         v.into_iter()
-        //             .map(|l| {
-        //                 let x = l.channels();
-        //                 (x[0], x[3])
-        //             })
-        //             .collect::<Vec<(u8, u8)>>()
-        //     }) /*.skip_while(|p| p.is_empty())*/
-        //     .collect::<Vec<Vec<(u8, u8)>>>();
-
-        // let len_v = pixels.len();
-        // let len_h =
+                ((((h as f32 * ratio) / 2.0).ceil() as usize).clamp(1, height as usize), h)
+            },
+            (Some(v), Some(h)) => (v.clamp(1, height as usize), h.clamp(1, width as usize)),
+        };
+        println!("height: {}, width: {}", final_height, final_width);
 
         let source_height = pixels.len();
         let source_width = pixels[0].len();
@@ -77,22 +69,18 @@ impl AsciiImg {
             "Input grid must not be empty."
         );
         assert!(
-            width > 0 && height > 0,
+            final_width > 0 && final_height > 0,
             "Target dimensions must be greater than zero."
         );
 
         let mut output = Vec::new();
 
-        // Scaling factors
-        // let scale_x = (source_width as f32 / width as f32).floor() as u32;
-        // let scale_y = (source_height as f32 / height as f32).floor() as u32;
+        let scale_x = ((source_width as f32 / final_width as f32).ceil() as usize).max(1);
+        let scale_y = ((source_height as f32 / final_height as f32).ceil() as usize).max(1);
 
-        let scale_x = ((source_width as f32 / width as f32).ceil() as usize).max(1);
-        let scale_y = ((source_height as f32 / height as f32).ceil() as usize).max(1);
-
-        for h in 0..height {
+        for h in 0..final_height {
             let mut out_row = Vec::new();
-            for w in 0..width {
+            for w in 0..final_width {
                 let mut buffer = Vec::new();
                 for y in 0..scale_y {
                     for x in 0..scale_x {
@@ -128,7 +116,7 @@ impl AsciiImg {
                 .iter()
                 .map(|vec| {
                     vec.iter()
-                        .map(|px| DensityChar::get_char_from_u8(px.0, invert, px.1))
+                        .map(|px| DensityChar::get_char_from_u8(px.0, invert, px.1, uniform))
                         .collect::<Vec<ColorChar>>()
                 })
                 .collect::<Vec<Vec<ColorChar>>>(),
@@ -205,11 +193,12 @@ impl GenAscii for Vec<Vec<ColorChar>> {
             .map(|vec| {
                 vec.iter()
                     .map(|c| c.to_string())
-                    .collect::<Vec<ColoredString>>()
-                    .custom_join("")
+                    .filter(|t| !t.contains("[38;2;0;0;0m "))
+                    .collect::<Vec<String>>()
+                    .join("")
             })
             .collect::<Vec<String>>()
-            .custom_join("\n")
+            .join("\n")
     }
 }
 
@@ -233,65 +222,15 @@ impl Penalty for Rgba<u8> {
     }
 }
 
-// pub fn convert(
-//     path: String,
-//     target_height: Option<Option<usize>>,
-//     target_width: Option<Option<usize>>,
-//     invert: bool,
-//     grayscale: bool,
-// ) -> Result<String, Box<dyn Error>> {
-//     let target_image = path;
-
-//     let img = ImageReader::open(target_image)?.decode()?;
-
-//     // let (height, width) = img.dimensions();
-//     let (width, height) = img.dimensions();
-
-//     // println!("{}, {}", width, height);
-
-//     let mut pixels: Vec<Vec<Rgba<u8>>> = Vec::new();
-
-//     for y in 0..height {
-//         let mut inner_vec = vec![];
-//         for x in 0..width {
-//             // Get the pixel as an RGBA tuple
-//             let pixel = img.get_pixel(x, y);
-
-//             inner_vec.push(pixel);
-//         }
-//         pixels.push(inner_vec);
-//     }
-
-//     let ascii = AsciiImg::new(
-//         pixels,
-//         target_height.unwrap_or(height as Option<usize>),
-//         target_width.unwrap_or(width as Option<usize>),
-//         invert,
-//         grayscale,
-//     );
-
-//     // -------------------------------------------------------------
-
-//     Ok(ascii.pixels.gen_ascii())
-// }
-
 pub fn convert(
     path: String,
     target_height: Option<usize>,
     target_width: Option<usize>,
     invert: bool,
     grayscale: bool,
+    uniform: bool,
 ) -> Result<String, Box<dyn Error>> {
-    let ascii = AsciiImg::new(path, target_height, target_width, invert, grayscale)?;
+    let ascii = AsciiImg::new(path, target_height, target_width, invert, grayscale, uniform)?;
     //todo!()
     Ok(ascii.pixels.gen_ascii())
 }
-
-// pub fn convert_color(path: String, target_height: Option<Option<usize>>, target_width: Option<Option<usize>>) -> Result<String, Box<dyn Error>> {
-//     let target_image = path;
-
-//     let img = ImageReader::open(target_image)?.decode()?;
-
-//     let (width, height) = img.dimensions();
-
-// }

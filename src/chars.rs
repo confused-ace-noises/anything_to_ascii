@@ -5,20 +5,20 @@ use std::u8;
 
 static char_empty: char = ' ';
 static char0_17: char = '.';
-static char17_34: char = '\'';
-static char34_51: char = ',';
-static char51_68: char = '-';
-static char68_85: char = '~';
-static char85_102: char = ':';
-static char102_119: char = ';';
-static char119_136: char = '=';
-static char136_153: char = '!';
-static char153_170: char = 'o';
-static char170_187: char = '*';
-static char187_204: char = '#';
-static char204_221: char = '%';
-static char221_238: char = '@';
-static char238_255: char = '$';
+static char17_34: char = '-';
+static char34_51: char = '=';
+static char51_68: char = 'r';
+static char68_85: char = 'z';
+static char85_102: char = 'L';
+static char102_119: char = 'T';
+static char119_136: char = '3';
+static char136_153: char = 'y';
+static char153_170: char = 'Y';
+static char170_187: char = 'V';
+static char187_204: char = 'K';
+static char204_221: char = '8';
+static char221_238: char = 'Q';
+static char238_255: char = '@';
 
 //  '.,-~:;=!o*#%@$
 
@@ -62,45 +62,61 @@ impl DensityChar {
         }
     }
 
-    pub fn get_char_from_u8(n: u8, invert: bool, color: CustomColor) -> ColorChar {
+    pub fn get_char_from_u8(n: u8, invert: bool, color: CustomColor, uniform: bool) -> ColorChar {
         let ch = {
             if !invert {
-                match n {
-                    0 => char_empty,
-                    1..17 => char0_17,
-                    17..34 => char17_34,
-                    34..51 => char34_51,
-                    51..68 => char51_68,
-                    68..85 => char68_85,
-                    85..102 => char85_102,
-                    102..119 => char102_119,
-                    119..136 => char119_136,
-                    136..153 => char136_153,
-                    153..170 => char153_170,
-                    170..187 => char170_187,
-                    187..204 => char187_204,
-                    204..221 => char204_221,
-                    221..238 => char221_238,
-                    238..=255 => char238_255,
+                if uniform {
+                    if n == 0 {
+                        char_empty
+                    } else {
+                        char238_255
+                    }
+                } else {
+                    match n {
+                        0 => char_empty,
+                        1..17 => char0_17,
+                        17..34 => char17_34,
+                        34..51 => char34_51,
+                        51..68 => char51_68,
+                        68..85 => char68_85,
+                        85..102 => char85_102,
+                        102..119 => char102_119,
+                        119..136 => char119_136,
+                        136..153 => char136_153,
+                        153..170 => char153_170,
+                        170..187 => char170_187,
+                        187..204 => char187_204,
+                        204..221 => char204_221,
+                        221..238 => char221_238,
+                        238..=255 => char238_255,
+                    }
                 }
             } else {
-                match n {
-                    0..17 => char238_255,
-                    17..34 => char221_238,
-                    34..51 => char204_221,
-                    51..68 => char187_204,
-                    68..85 => char170_187,
-                    85..102 => char153_170,
-                    102..119 => char136_153,
-                    119..136 => char119_136,
-                    136..153 => char102_119,
-                    153..170 => char85_102,
-                    170..187 => char68_85,
-                    187..204 => char51_68,
-                    204..221 => char34_51,
-                    221..238 => char17_34,
-                    238..255 => char0_17,
-                    255 => char_empty,
+                if uniform {
+                    if n == 255 {
+                        char_empty
+                    } else {
+                        char0_17
+                    }
+                } else {
+                    match n {
+                        0..17 => char238_255,
+                        17..34 => char221_238,
+                        34..51 => char204_221,
+                        51..68 => char187_204,
+                        68..85 => char170_187,
+                        85..102 => char153_170,
+                        102..119 => char136_153,
+                        119..136 => char119_136,
+                        136..153 => char102_119,
+                        153..170 => char85_102,
+                        170..187 => char68_85,
+                        187..204 => char51_68,
+                        204..221 => char34_51,
+                        221..238 => char17_34,
+                        238..255 => char0_17,
+                        255 => char_empty,
+                    }
                 }
             }
         };
@@ -120,11 +136,15 @@ impl ColorChar {
         ColorChar { ch, color }
     }
 
-    pub fn to_string(&self) -> ColoredString {
+    pub fn to_string(&self) -> String {
         let ch = self.ch;
         let color = self.color;
 
-        ch.to_string().custom_color(color)
+        if color.r == 255 && color.g == 255 && color.b == 255 {
+            return ch.to_string();
+        } else {
+            format!("{}", ch.to_string().custom_color(color))
+        }
     }
 }
 
@@ -138,7 +158,7 @@ impl JoinColored for Vec<ColoredString> {
         let mut final_string = String::new();
 
         for y in self.iter() {
-            final_string = format!("{}{}{}",final_string,x.clone(),y);
+            final_string = format!("{}{}{}", final_string, x.clone(), y);
         }
 
         final_string
@@ -151,7 +171,7 @@ impl JoinColored for Vec<String> {
         let mut final_string = String::new();
 
         for y in self.iter() {
-            final_string = format!("{}{}{}",final_string,x.clone(),y);
+            final_string = format!("{}{}{}", final_string, x.clone(), y);
         }
 
         final_string
