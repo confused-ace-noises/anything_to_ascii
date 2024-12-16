@@ -157,7 +157,7 @@ impl AsciiImg {
 
         let (src_width, src_height) = img.dimensions();
 
-        let (final_height, final_width) =
+        let (final_width, final_height) =
             (target_width, target_height).demure_unwrap(src_width, src_height);
             // (target_height, target_width).demure_unwrap(src_width, src_height);
         let (final_width, final_height) = (final_width as usize, final_height as usize);
