@@ -3,7 +3,7 @@ use image::{GenericImageView, ImageReader, Pixel, Rgba};
 use rayon::prelude::*;
 use std::error::Error;
 
-use crate::{ColorChar, DensityChar};
+use crate::core::{algo::algo_parallel, chars::{ColorChar, DensityChar}};
 
 #[derive(Debug, Clone)]
 pub struct AsciiImg {
@@ -137,6 +137,7 @@ impl AsciiImg {
         })
     }
 
+    #[rustfmt::skip]
     pub fn new_parallel(
         path: String,
         target_height: Option<u32>,
@@ -185,35 +186,8 @@ impl AsciiImg {
 
         // ------
 
-        let scale_x = ((src_width as f32 / final_width as f32).ceil() as usize).max(1);
-        let scale_y = ((src_height as f32 / final_height as f32).ceil() as usize).max(1);
-
-        #[rustfmt::skip]
-        let output: Vec<Vec<ColorChar>> = (0..final_height)
-            .into_par_iter()
-            .map(|big_px_h| {
-                (0..final_width)
-                    .into_par_iter()
-                    .map(|big_px_w| {
-                        let thing = (0..scale_y).into_par_iter().map(|inner_y| {
-                            (0..scale_x).into_par_iter().map(|inner_x| {
-                                let indx_height = ((big_px_h * scale_y) + inner_y) as usize;
-                                let indx_width = ((big_px_w * scale_x) + inner_x) as usize;
-                                
-                                if indx_height < src_height as usize && indx_width < src_width as usize {
-                                    pixels[indx_height][indx_width]
-                                } else {
-                                    Rgba::from([128, 128, 128, 0])
-                                }
-                            }).collect::<Vec<Rgba<u8>>>()
-                        }).flatten().map(|x| if grayscale { (x.calc_penalty(), CustomColor::new(255, 255, 255))} else { let z = x.channels(); (x.calc_penalty(), CustomColor::new(z[0], z[1], z[2]))}).collect::<Vec<(u8, CustomColor)>>().average();
-
-                        DensityChar::get_char_from_u8(thing.0, invert, thing.1, uniform)
-                    })
-                    .collect::<Vec<ColorChar>>() // Collect the row
-            })
-            .collect::<Vec<Vec<ColorChar>>>();
-
+        let output = algo_parallel(pixels, src_height, src_width, final_height, final_width, grayscale, invert, uniform);
+        
         Ok(AsciiImg {
             height: target_height.and_then(|u| Some(u as usize)), 
             width: target_width.and_then(|u| Some(u as usize)), 
@@ -362,15 +336,29 @@ pub fn convert(
     invert: bool,
     grayscale: bool,
     uniform: bool,
+    paralleled: bool
 ) -> Result<String, Box<dyn Error>> {
-    let ascii = AsciiImg::new_parallel(
-        path,
-        target_height,
-        target_width,
-        invert,
-        grayscale,
-        uniform,
-    )?;
-    //todo!()
+    let ascii: AsciiImg;
+    
+    if paralleled {
+        ascii = AsciiImg::new_parallel(
+            path,
+            target_height,
+            target_width,
+            invert,
+            grayscale,
+            uniform,
+        )?;
+    } else {
+        ascii = AsciiImg::new(
+            path,
+            target_height.and_then(|x| Some(x as usize)),
+            target_width.and_then(|x| Some(x as usize)),
+            invert,
+            grayscale,
+            uniform,
+        )?;
+    }
+
     Ok(ascii.pixels.gen_ascii())
 }

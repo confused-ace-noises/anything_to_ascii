@@ -1,8 +1,5 @@
-pub mod chars;
-pub use chars::*;
+pub mod core;
+pub mod from_image;
+pub mod from_video;
 
-pub mod ascii_img;
-
-pub mod dimensions;
-
-pub mod cli;
+pub use from_image::ascii_img;
