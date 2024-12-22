@@ -44,6 +44,7 @@ pub enum Commands {
         no_parallel: bool,
     },
 
+    /// Turns a video into a sequence of frames, which can be played to the terminal or saved to a folder to then be played with the read command.
     Video {
         /// The path to the video to convert to ascii.
         #[arg(short, long)]
