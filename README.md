@@ -12,6 +12,8 @@ be it images, videos, or even audio tracks, you can turn them into an ASCII art 
 
 ### Image conversion:
 
+https://github.com/confused-ace-noises/anything_to_ascii/raw/refs/heads/master/.assets/ascii_image_video.mp4
 
 ### Video Conversion:
 
+https://github.com/confused-ace-noises/anything_to_ascii/raw/refs/heads/master/.assets/ascii_video_video_pizza.mp4
