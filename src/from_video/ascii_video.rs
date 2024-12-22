@@ -1,28 +1,16 @@
-use image::{Frames, RgbImage, Rgba, RgbaImage};
+use image::Rgba;
 use rayon::prelude::*;
 use std::{
     error::Error,
-    ffi::OsStr,
-    fs::{self, File},
     path::Path,
 };
 use video_rs;
 
-use crate::{
-    ascii_img::{AsciiImg, DemureUnwrap, GenAscii},
-    core::algo::{self, algo_parallel},
-};
-
-// #[test]
-// fn test3() {
-//     AsciiVideo::new_parallel_gstreamer("".to_string(), None, None, None, None, false, false, false)
-//         .unwrap();
-// }
+use crate::ascii_img::{AsciiImg, DemureUnwrap, GenAscii};
 
 pub struct AsciiVideo {
     pub frames: Vec<AsciiImg>,
     pub n_frames: usize, // in frames/second
-                         // pub tot_length: usize, // in ms
 }
 impl AsciiVideo {
     fn new_parallel_fixed(
@@ -67,7 +55,7 @@ impl AsciiVideo {
                 let (final_width, final_height) = (final_width, final_height)
                     .demure_unwrap(frame.shape()[1] as u32, frame.shape()[0] as u32);
 
-                algo::algo_parallel(
+                crate::core::algo::algo_parallel(
                     x,
                     frame.shape()[0] as u32,
                     frame.shape()[1] as u32,

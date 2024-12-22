@@ -10,6 +10,7 @@ colored = "2.1.0"
 rayon = "1.10.0"
 video-rs = { version = "0.10.3", features = ["ndarray"] }
 ndarray = "0.16.1"
+symphonia = { version = "0.5.4", features = ["aiff", "isomp4", "mkv", "ogg", "wav", "all-codecs", "mpa"]}
 
 [profile.release]
 opt-level = 3

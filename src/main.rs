@@ -1,8 +1,8 @@
 use std::{error::Error, ffi::OsStr, fs, io::Write, path::Path, thread, time};
 
 use clap::Parser;
-use image_to_ascii::{ascii_img, core::cli::*, from_video::ascii_video::convert_video};
-use rayon::{iter::{IntoParallelIterator, ParallelIterator}, string};
+use image_to_ascii::{ascii_img, core::cli::*, from_audio::ascii_waveform::convert_audio, from_video::ascii_video::convert_video, read::read_video::{read_dir_no_parallel, read_dir_parallel}};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
@@ -90,6 +90,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                 },
             }
+        }
+        Commands::Audio { path, height, invert, savepath, uniform_char, no_parallel, media_type } => {
+            let waveform = convert_audio(path, media_type, height.unwrap_or(255), uniform_char, invert, !no_parallel)?;
+            match savepath {
+                Some(savepath) => {
+                    fs::write(savepath, waveform)?
+                },
+                None => println!("{}", waveform),
+            }
+        },
+
+        Commands::Read { path, no_parallel, frame_delay} => {
+            let frames = {if !no_parallel {
+                read_dir_parallel(path)
+            } else {
+                read_dir_no_parallel(path)
+            }}?;
+
+            play_ascii_frames(frames, frame_delay.unwrap_or(100));
         }
     }
 

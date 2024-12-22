@@ -127,8 +127,8 @@ impl DensityChar {
 
 #[derive(Debug, Clone)]
 pub struct ColorChar {
-    ch: char,
-    color: CustomColor,
+    pub ch: char,
+    pub color: CustomColor,
 }
 
 impl ColorChar {

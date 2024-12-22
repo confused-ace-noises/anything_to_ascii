@@ -84,5 +84,51 @@ pub enum Commands {
         /// Disable parallelized operations while converting the video to ASCII art.
         #[arg(long = "no-parallel")]
         no_parallel: bool,
+    },
+
+    /// Creates an ASCII art of the waveform of the provided audio.
+    Audio {
+         /// The path to the image to convert to ascii.
+         #[arg(short, long)]
+         path: String,
+ 
+         /// The height (in characters) of the highest(or lowest) waveform peak in the resulting ASCII art. If not provided, standard is 255 characters.
+         #[arg(short = 'H', long)]
+         height: Option<u32>,
+ 
+         /// Whether to invert the image. (dark areas become lighter and vice-versa).
+         #[arg(long)]
+         invert: bool,
+ 
+         /// The savepath for the ASCII art.
+         #[arg(short, long)]
+         savepath: Option<String>,
+ 
+         /// Makes it so every character is the most luminous one.
+         #[arg(short = 'u', long = "uniform-char")]
+         uniform_char: bool,
+ 
+         /// Disable parallelized operations while converting the audio to ASCII art.
+         #[arg(long = "no-parallel")]
+         no_parallel: bool,
+
+         /// specifies the audio type. (eg: mp3, ogg, etc...)
+         #[arg(long, short)]
+         media_type: String,
+    },
+
+    /// Read a folder with frames created by the video command, and then show them in the terminal.
+    Read {
+        /// Path to the folder to read the frames from
+        #[arg(long, short)]
+        path: String,
+
+        /// Disable parallelized operations while reading the frames.
+        #[arg(long = "no-parallel")]
+        no_parallel: bool,
+
+        /// The delay between one frame and the other while displaying them, in millisecods (ms). default is 100 ms.
+        #[arg(long = "frame-delay", short)]
+        frame_delay: Option<usize>,
     }
 }
