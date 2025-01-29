@@ -9,6 +9,12 @@ pub struct Cli {
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum Commands {
+    // /// Launches the web api.
+    // Api {
+    //     #[arg(long = "no-parallel")]
+    //     no_parallel: bool,
+    // },
+
     /// Convert an image.
     Image {
         /// The path to the image to convert to ascii.
@@ -17,11 +23,11 @@ pub enum Commands {
 
         /// The width (in characters) of the resulting ASCII art. If only the height is provided, this one will be inferred while trying to maintain the best proportions possible. If neither is, the image's height and width will be used.
         #[arg(short = 'W', long)]
-        width: Option<u32>,
+        width: Option<usize>,
 
         /// The height (in characters) of the resulting ASCII art. If only the width is provided, this one will be inferred while trying to maintain the best proportions possible. If neither is, the image's height and width will be used.
         #[arg(short = 'H', long)]
-        height: Option<u32>,
+        height: Option<usize>,
 
         /// Whether to invert the image. (dark areas become lighter and vice-versa).
         #[arg(long)]
@@ -52,11 +58,11 @@ pub enum Commands {
 
         /// The width (in characters) of the resulting ASCII art. If only the height is provided, this one will be inferred while trying to maintain the best proportions possible. If neither is, the image's height and width will be used.
         #[arg(short = 'W', long)]
-        width: Option<u32>,
+        width: Option<usize>,
 
         /// The height (in characters) of the resulting ASCII art. If only the width is provided, this one will be inferred while trying to maintain the best proportions possible. If neither is, the image's height and width will be used.
         #[arg(short = 'H', long)]
-        height: Option<u32>,
+        height: Option<usize>,
 
         /// The number of total frames in the ASCII art video. The default is the original's video.
         #[arg(short = 'f', long = "number-frames")]
@@ -72,7 +78,7 @@ pub enum Commands {
 
         /// The delay between one frame and the other, in ms (milliseconds).
         #[arg(long = "delay-frames", group = "frame-group")]
-        delay_frames: Option<u32>,
+        delay_frames: Option<usize>,
 
         /// Whether the ASCII art should also contain colors. Attention: colors are encoded in ANSI, be sure to use a text editor or terminal capable of displaying ANSI characters correctly.
         #[arg(short, long)]
@@ -95,7 +101,7 @@ pub enum Commands {
  
          /// The height (in characters) of the highest(or lowest) waveform peak in the resulting ASCII art. If not provided, standard is 255 characters.
          #[arg(short = 'H', long)]
-         height: Option<u32>,
+         height: Option<usize>,
  
          /// Whether to invert the image. (dark areas become lighter and vice-versa).
          #[arg(long)]

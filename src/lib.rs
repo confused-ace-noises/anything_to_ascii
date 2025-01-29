@@ -1,7 +1,14 @@
 pub mod core;
-pub mod from_image;
-pub mod from_video;
-pub mod from_audio;
+pub mod utils;
+pub mod image;
+pub mod video;
+pub mod audio;
 pub mod read;
 
-pub use from_image::ascii_img;
+pub use utils::error::Error;
+
+pub mod prelude {
+    pub use crate::image::image_to_ascii::AsciiImg;
+    pub use crate::video::video_to_ascii::AsciiVid;
+    pub use crate::audio::audio_to_ascii::AsciiAudio;
+}

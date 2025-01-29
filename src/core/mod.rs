@@ -1,3 +1,4 @@
-pub mod cli;
-pub mod chars;
+pub mod char;
 pub mod algo;
+pub mod flat_matrix;
+pub mod cli;

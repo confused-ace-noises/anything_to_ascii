@@ -1,37 +1,117 @@
 use colored::CustomColor;
-use image::{Pixel, Rgba};
-use rayon::prelude::*;
-use crate::ascii_img::{Average, Penalty};
+use image::Rgba;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use super::chars::*;
+use super::{char::ColoredChar, flat_matrix::FlatMatrix};
 
-#[rustfmt::skip]
-pub fn algo_parallel(pixels: Vec<Vec<Rgba<u8>>>, src_height: u32, src_width: u32, final_height: usize, final_width: usize, grayscale: bool, invert: bool, uniform: bool) -> Vec<Vec<ColorChar>> {
-    let scale_x = ((src_width as f32 / final_width as f32).ceil() as usize).max(1);
-    let scale_y = ((src_height as f32 / final_height as f32).ceil() as usize).max(1);
-    
-    (0..final_height)
-            .into_par_iter()
-            .map(|big_px_h| {
-                (0..final_width)
-                    .into_par_iter()
-                    .map(|big_px_w| {
-                        let thing = (0..scale_y).into_par_iter().map(|inner_y| {
-                            (0..scale_x).into_par_iter().map(|inner_x| {
-                                let indx_height = ((big_px_h * scale_y) + inner_y) as usize;
-                                let indx_width = ((big_px_w * scale_x) + inner_x) as usize;
-                                
-                                if indx_height < src_height as usize && indx_width < src_width as usize {
-                                    pixels[indx_height][indx_width]
-                                } else {
-                                    Rgba::from([128, 128, 128, 0])
-                                }
-                            }).collect::<Vec<Rgba<u8>>>()
-                        }).flatten().map(|x| if grayscale { (x.calc_penalty(), CustomColor::new(255, 255, 255))} else { let z = x.channels(); (x.calc_penalty(), CustomColor::new(z[0], z[1], z[2]))}).collect::<Vec<(u8, CustomColor)>>().average();
+pub fn algo_parallel(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_width: usize, grayscale: bool, uniform: bool, invert: bool) -> FlatMatrix<ColoredChar> {
+    let src_height = pixels.rows; //...................
+    let src_width = pixels.columns;
 
-                        DensityChar::get_char_from_u8(thing.0, invert, thing.1, uniform)
-                    })
-                    .collect::<Vec<ColorChar>>() // Collect the row
-            })
-            .collect::<Vec<Vec<ColorChar>>>()
+    let scale_height = ((src_height as f32 / target_height as f32).ceil() as usize).max(1);
+    let scale_width = ((src_width as f32 / target_width as f32).ceil() as usize).max(1);
+
+    let final_matrix = (0..target_height).into_par_iter().map(|big_px_height| {
+        (0..target_width).into_par_iter().map(|big_px_width| {
+            
+
+            let big_px_to_average = (0..scale_height).into_par_iter().map(|small_px_height| {
+                (0..scale_width).into_par_iter().map(|small_px_width| {
+                    let index = (big_px_height*scale_height + small_px_height, big_px_width*scale_width + small_px_width);
+
+                    if index.0 >= pixels.rows || index.1 >= pixels.columns {
+                        ColoredChar {
+                            color: CustomColor::new(255, 255, 255),
+                            ch: ' ',
+                            density: 0,
+                            display: false,
+                        }
+                    } else {
+                        let pixel = pixels[index];
+                        ColoredChar::from_color(pixel, grayscale, invert, uniform)
+                    }
+                    // let density = pixel.calc_penalty();
+
+                    // (density as f32, !((density == 0 && !invert) || (density == 255 && invert)))
+                }).collect::<Vec<_>>()
+            }).flatten()
+                .map(|x| ((x.color.r as f32, x.color.g as f32, x.color.b as f32, x.density as f32, x.display), 1))
+                .reduce(|| ((0.0, 0.0, 0.0, 0.0, false), 0_usize), |(sum1, count1), (sum2, count2)| ((sum1.0 + sum2.0, sum1.1 + sum2.1, sum1.2 + sum2.2, sum1.3 + sum2.3, sum1.4 || sum2.4), count1 + count2));
+
+
+            let big_px_average = {
+                let dividend = big_px_to_average.1 as f32;
+
+                let r = (big_px_to_average.0.0 / dividend).round_ties_even() as u8;
+                let g = (big_px_to_average.0.1 / dividend).round_ties_even() as u8;
+                let b = (big_px_to_average.0.2 / dividend).round_ties_even() as u8;
+
+                let density = (big_px_to_average.0.3 / dividend).round_ties_even() as u8;
+
+                let display = big_px_to_average.0.4;
+
+                ColoredChar::from_everything(density, (r, g, b), display, invert, uniform)
+            };
+
+            big_px_average
+        }).collect::<Vec<_>>()
+    }).collect::<FlatMatrix<_>>();
+
+    final_matrix
+}
+
+pub fn algo_sequential(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_width: usize, grayscale: bool, uniform: bool, invert: bool) -> FlatMatrix<ColoredChar> {
+    let src_height = pixels.rows; 
+    let src_width = pixels.columns;
+
+    let scale_height = ((src_height as f32 / target_height as f32).ceil() as usize).max(1);
+    let scale_width = ((src_width as f32 / target_width as f32).ceil() as usize).max(1);
+
+    let final_matrix = (0..target_height).into_iter().map(|big_px_height| {
+        (0..target_width).into_iter().map(|big_px_width| {
+            
+
+            let big_px_to_average = (0..scale_height).into_iter().map(|small_px_height| {
+                (0..scale_width).into_iter().map(|small_px_width| {
+                    let index = (big_px_height*scale_height + small_px_height, big_px_width*scale_width + small_px_width);
+
+                    if index.0 >= pixels.rows || index.1 >= pixels.columns {
+                        ColoredChar {
+                            color: CustomColor::new(255, 255, 255),
+                            ch: ' ',
+                            density: 0,
+                            display: false,
+                        }
+                    } else {
+                        let pixel = pixels[index];
+                        ColoredChar::from_color(pixel, grayscale, invert, uniform)
+                    }
+                    // let density = pixel.calc_penalty();
+
+                    // (density as f32, !((density == 0 && !invert) || (density == 255 && invert)))
+                }).collect::<Vec<_>>()
+            }).flatten()
+                .map(|x| ((x.color.r as f32, x.color.g as f32, x.color.b as f32, x.density as f32, x.display), 1))
+                .fold(((0.0, 0.0, 0.0, 0.0, false), 0_usize), |(sum1, count1), (sum2, count2)| ((sum1.0 + sum2.0, sum1.1 + sum2.1, sum1.2 + sum2.2, sum1.3 + sum2.3, sum1.4 || sum2.4), count1 + count2));
+
+
+            let big_px_average = {
+                let dividend = big_px_to_average.1 as f32;
+
+                let r = (big_px_to_average.0.0 / dividend).round_ties_even() as u8;
+                let g = (big_px_to_average.0.1 / dividend).round_ties_even() as u8;
+                let b = (big_px_to_average.0.2 / dividend).round_ties_even() as u8;
+
+                let density = (big_px_to_average.0.3 / dividend).round_ties_even() as u8;
+
+                let display = big_px_to_average.0.4;
+
+                ColoredChar::from_everything(density, (r, g, b), display, invert, uniform)
+            };
+
+            big_px_average
+        }).collect::<Vec<_>>()
+    }).collect::<FlatMatrix<_>>();
+
+    final_matrix
 }

@@ -1,12 +1,16 @@
-use std::{error::Error, ffi::OsStr, fs, io::Write, path::Path, thread, time};
-
+use anything_to_ascii::{
+    core::cli::*,
+    prelude::{AsciiAudio, AsciiImg, AsciiVid}, read::read::{read_dir_no_parallel, read_dir_parallel},
+}; //read::read_video::{read_dir_no_parallel, read_dir_parallel}};
 use clap::Parser;
-use image_to_ascii::{ascii_img, core::cli::*, from_audio::ascii_waveform::convert_audio, from_video::ascii_video::convert_video, read::read_video::{read_dir_no_parallel, read_dir_parallel}};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{error::Error, ffi::OsStr, fs, io::Write, path::Path, thread, time};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     match cli.command {
+        // Commands::Api { no_parallel } => {}
+
         Commands::Image {
             path,
             width,
@@ -19,18 +23,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let name = path;
 
-            let x = ascii_img::convert(
-                name,
-                height,
-                width,
-                invert,
-                !colored,
-                uniform_char,
-                !no_parallel,
-            )?;
+            let x = if !no_parallel {
+                AsciiImg::new_paralleled(name, height, width, invert, !colored, uniform_char)?
+            } else {
+                AsciiImg::new_sequential(name, height, width, invert, !colored, uniform_char)?
+            };
 
             match savepath {
-                Some(path) => fs::write(path, x)?,
+                Some(path) => fs::write(path, x.to_string())?,
                 None => println!("{}", x),
             }
         }
@@ -47,16 +47,27 @@ fn main() -> Result<(), Box<dyn Error>> {
             delay_frames,
             n_frames,
         } => {
-            let video = convert_video(
-                path,
-                n_frames.and_then(|k| Some(k as u32)),
-                height,
-                width,
-                invert,
-                !colored,
-                uniform_char,
-                !no_parallel,
-            )?;
+            let video = if !no_parallel {
+                AsciiVid::new_paralleled(
+                    path,
+                    n_frames,
+                    height,
+                    width,
+                    invert,
+                    !colored,
+                    uniform_char,
+                )?
+            } else {
+                AsciiVid::new_sequential(
+                    path,
+                    n_frames,
+                    height,
+                    width,
+                    invert,
+                    !colored,
+                    uniform_char,
+                )?
+            };
 
             match savepath {
                 Some(sv_path) => {
@@ -67,7 +78,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .to_string();
                     let save_path = Path::new(&sv_path);
 
-                    let len = video.len();
+                    let len = video.0.len();
 
                     fs::create_dir_all(save_path).expect("failed to write folders");
 
@@ -77,36 +88,74 @@ fn main() -> Result<(), Box<dyn Error>> {
                         // Combine save folder path with the frame file name
                         let frame_file_path = save_path.join(frame_file_name);
 
-                        let text = &video[index];
+                        let text = &video.0[index];
 
-                        fs::write(frame_file_path, text)
-                            .expect("failed to write");
+                        fs::write(frame_file_path, text.to_string()).expect("failed to write");
                     });
                 }
-                None => {
-                    match delay_frames {
-                        Some(delay) => play_ascii_frames(video, delay as usize),
-                        None => play_ascii_frames(video, 100),
-                    }
+
+                None => match delay_frames {
+                    Some(delay) => play_ascii_frames(video.0.into_iter().map(|img| img.to_string()).collect(), delay as usize),
+                    None => play_ascii_frames(video.0.into_iter().map(|img| img.to_string()).collect(), 100),
                 },
             }
         }
-        Commands::Audio { path, height, invert, savepath, uniform_char, no_parallel, media_type } => {
-            let waveform = convert_audio(path, media_type, height.unwrap_or(255), uniform_char, invert, !no_parallel)?;
-            match savepath {
-                Some(savepath) => {
-                    fs::write(savepath, waveform)?
-                },
-                None => println!("{}", waveform),
-            }
-        },
-
-        Commands::Read { path, no_parallel, frame_delay} => {
-            let frames = {if !no_parallel {
-                read_dir_parallel(path)
+        Commands::Audio {
+            path,
+            height,
+            invert,
+            savepath,
+            uniform_char,
+            no_parallel,
+            media_type,
+        } => {
+            let waveform = if !no_parallel {
+                AsciiAudio::new_parallel(
+                    path,
+                    media_type,
+                    height.unwrap_or(255),
+                    uniform_char,
+                    invert,
+                )?
             } else {
-                read_dir_no_parallel(path)
-            }}?;
+                AsciiAudio::new_sequential(
+                    path,
+                    media_type,
+                    height.unwrap_or(255),
+                    uniform_char,
+                    invert,
+                )?
+            };
+
+            let contents = waveform
+                .0
+                .into_iter_vecs()
+                .map(|x| {
+                    x.into_iter()
+                        .map(|y| y.to_string())
+                        .collect::<Vec<_>>()
+                        .join("")
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            match savepath {
+                Some(savepath) => fs::write(savepath, contents)?,
+                None => println!("{}", contents),
+            }
+        }
+
+        Commands::Read {
+            path,
+            no_parallel,
+            frame_delay,
+        } => {
+            let frames = {
+                if !no_parallel {
+                    read_dir_parallel(path)
+                } else {
+                    read_dir_no_parallel(path)
+                }
+            }?;
 
             play_ascii_frames(frames, frame_delay.unwrap_or(100));
         }
