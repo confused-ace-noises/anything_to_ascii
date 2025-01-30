@@ -9,11 +9,15 @@ pub struct Cli {
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum Commands {
-    // /// Launches the web api.
-    // Api {
-    //     #[arg(long = "no-parallel")]
-    //     no_parallel: bool,
-    // },
+    /// Launches the web api.
+    Api {
+        /// prevents the api calls to run any parallel processes.
+        #[arg(long = "no-parallel")]
+        no_parallel: bool,
+
+        #[arg(short, long)]
+        port: Option<u16>,
+    },
 
     /// Convert an image.
     Image {
@@ -135,7 +139,13 @@ pub enum Commands {
         no_parallel: bool,
 
         /// The delay between one frame and the other while displaying them, in millisecods (ms). default is 100 ms.
-        #[arg(long = "frame-delay", short)]
+        #[arg(long = "frame-delay", short, group = "delay-group")]
         frame_delay: Option<usize>,
+
+        #[arg(long = "read-api-output", group = "read-group")]
+        read_api_output: bool,
+
+        #[arg(long = "read_api_output_to_dir", group = "read-group", group = "delay-group")]
+        read_api_output_to_dir: Option<String>
     }
 }

@@ -1,15 +1,21 @@
+use anything_to_ascii::api::api::*;
 use anything_to_ascii::{
     core::cli::*,
-    prelude::{AsciiAudio, AsciiImg, AsciiVid}, read::read::{read_dir_no_parallel, read_dir_parallel},
+    prelude::{AsciiAudio, AsciiImg, AsciiVid},
+    read::read::*,
 }; //read::read_video::{read_dir_no_parallel, read_dir_parallel}};
 use clap::Parser;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rocket::{routes, tokio, Config};
 use std::{error::Error, ffi::OsStr, fs, io::Write, path::Path, thread, time};
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     match cli.command {
-        // Commands::Api { no_parallel } => {}
+        Commands::Api { no_parallel, port } => {
+            let _ = build_rocket(no_parallel, port).launch().await;
+        }
 
         Commands::Image {
             path,
@@ -24,9 +30,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             let name = path;
 
             let x = if !no_parallel {
-                AsciiImg::new_paralleled(name, height, width, invert, !colored, uniform_char)?
+                AsciiImg::new_parallel_file(name, height, width, invert, !colored, uniform_char)?
             } else {
-                AsciiImg::new_sequential(name, height, width, invert, !colored, uniform_char)?
+                AsciiImg::new_sequential_file(name, height, width, invert, !colored, uniform_char)?
             };
 
             match savepath {
@@ -49,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let video = if !no_parallel {
                 AsciiVid::new_paralleled(
-                    path,
+                    &path,
                     n_frames,
                     height,
                     width,
@@ -59,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )?
             } else {
                 AsciiVid::new_sequential(
-                    path,
+                    &path,
                     n_frames,
                     height,
                     width,
@@ -95,8 +101,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 None => match delay_frames {
-                    Some(delay) => play_ascii_frames(video.0.into_iter().map(|img| img.to_string()).collect(), delay as usize),
-                    None => play_ascii_frames(video.0.into_iter().map(|img| img.to_string()).collect(), 100),
+                    Some(delay) => play_ascii_frames(
+                        video.0.into_iter().map(|img| img.to_string()).collect(),
+                        delay as usize,
+                    ),
+                    None => play_ascii_frames(
+                        video.0.into_iter().map(|img| img.to_string()).collect(),
+                        100,
+                    ),
                 },
             }
         }
@@ -111,7 +123,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let waveform = if !no_parallel {
                 AsciiAudio::new_parallel(
-                    path,
+                    &path,
                     media_type,
                     height.unwrap_or(255),
                     uniform_char,
@@ -119,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )?
             } else {
                 AsciiAudio::new_sequential(
-                    path,
+                    &path,
                     media_type,
                     height.unwrap_or(255),
                     uniform_char,
@@ -127,17 +139,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )?
             };
 
-            let contents = waveform
-                .0
-                .into_iter_vecs()
-                .map(|x| {
-                    x.into_iter()
-                        .map(|y| y.to_string())
-                        .collect::<Vec<_>>()
-                        .join("")
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+            let contents = waveform.to_string();
+                
             match savepath {
                 Some(savepath) => fs::write(savepath, contents)?,
                 None => println!("{}", contents),
@@ -148,13 +151,32 @@ fn main() -> Result<(), Box<dyn Error>> {
             path,
             no_parallel,
             frame_delay,
+            read_api_output,
+            read_api_output_to_dir,
         } => {
+            
+
             let frames = {
-                if !no_parallel {
+                if read_api_output {
+                    read_video_from_api_file(&path)
+                } else if let Some(dir_name) = read_api_output_to_dir {
+                    let frames = read_video_from_api_file(&path)?;
+                    
+                    let general_name = Path::new(&path).file_stem().unwrap_or(OsStr::new("video")).to_string_lossy().to_string();
+                    for frame in frames.into_iter().enumerate() {
+                        let frame_name = format!("{}_frame{}.txt", general_name, frame.0);
+
+                        let savepath = Path::new(&dir_name).join(frame_name);
+
+                        fs::write(savepath, frame.1)?;
+                    }
+
+                    return Ok(());
+                } else {if !no_parallel {
                     read_dir_parallel(path)
                 } else {
                     read_dir_no_parallel(path)
-                }
+                }}
             }?;
 
             play_ascii_frames(frames, frame_delay.unwrap_or(100));
@@ -180,5 +202,18 @@ fn play_ascii_frames(frames: Vec<String>, frame_delay: usize) {
 
         // Wait for the specified delay
         thread::sleep(time::Duration::from_millis(frame_delay as u64));
+    }
+}
+
+fn build_rocket(no_parallel: bool, port: Option<u16>) -> rocket::Rocket<rocket::Build> {
+    let config = Config {
+        port: port.unwrap_or(8000),
+        ..Default::default()
+    };
+    
+    if !no_parallel {
+        rocket::custom(config).mount("/", routes![api_img_to_ascii_parallel, api_video_to_ascii_parallel, api_audio_to_ascii_parallel])
+    } else {
+        rocket::custom(config).mount("/", routes![api_img_to_ascii_sequential, api_video_to_ascii_sequential, api_audio_to_ascii_sequential])
     }
 }

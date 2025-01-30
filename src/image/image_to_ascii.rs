@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use image::{GenericImageView, ImageReader, Rgba};
+use image::{DynamicImage, GenericImageView, ImageReader, Rgba};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use crate::core::algo::algo_sequential;
 use crate::core::char::Concat;
@@ -8,19 +8,19 @@ use crate::{core::{algo::algo_parallel, char::ColoredChar, flat_matrix::FlatMatr
 pub struct AsciiImg(pub FlatMatrix<ColoredChar>);
 
 impl AsciiImg {
-    pub fn new_paralleled(
-        path: String,
+    pub fn new_parallel(
+        image: DynamicImage,
         target_height: Option<usize>,
         target_width: Option<usize>,
         invert: bool,
         grayscale: bool,
         uniform: bool,
     ) -> Result<Self, Error> {
-        let image = if grayscale {
-            ImageReader::open(path)?.decode()?.grayscale()
-        } else {
-            ImageReader::open(path)?.decode()?
-        };
+        // let image = if grayscale {
+        //     ImageReader::open(path)?.decode()?.grayscale()
+        // } else {
+        //     ImageReader::open(path)?.decode()?
+        // };
 
         let (width, height) = image.dimensions();
         let (height, width) = (height as usize, width as usize);
@@ -41,18 +41,18 @@ impl AsciiImg {
     }
     
     pub fn new_sequential(
-        path: String,
+        image: DynamicImage,
         target_height: Option<usize>,
         target_width: Option<usize>,
         invert: bool,
         grayscale: bool,
         uniform: bool,
     ) -> Result<Self, Error> {
-        let image = if grayscale {
-            ImageReader::open(path)?.decode()?.grayscale()
-        } else {
-            ImageReader::open(path)?.decode()?
-        };
+        // let image = if grayscale {
+        //     ImageReader::open(path)?.decode()?.grayscale()
+        // } else {
+        //     ImageReader::open(path)?.decode()?
+        // };
 
         let (width, height) = image.dimensions();
         let (height, width) = (height as usize, width as usize);
@@ -71,6 +71,40 @@ impl AsciiImg {
 
         Ok(Self(flat_matrix))
     }
+
+    pub fn new_parallel_file(
+        path: String,
+        target_height: Option<usize>,
+        target_width: Option<usize>,
+        invert: bool,
+        grayscale: bool,
+        uniform: bool,
+    ) -> Result<Self, Error> {
+        let image = if grayscale {
+            ImageReader::open(path)?.decode()?.grayscale()
+        } else {
+            ImageReader::open(path)?.decode()?
+        };
+
+        Self::new_parallel(image, target_height, target_width, invert, grayscale, uniform)
+    }
+
+    pub fn new_sequential_file(
+        path: String,
+        target_height: Option<usize>,
+        target_width: Option<usize>,
+        invert: bool,
+        grayscale: bool,
+        uniform: bool,
+    ) -> Result<Self, Error> {
+        let image = if grayscale {
+            ImageReader::open(path)?.decode()?.grayscale()
+        } else {
+            ImageReader::open(path)?.decode()?
+        };
+
+        Self::new_sequential(image, target_height, target_width, invert, grayscale, uniform)
+    }
 }
 
 impl Display for AsciiImg {
@@ -84,7 +118,7 @@ impl Display for AsciiImg {
 #[test]
 fn test() {
     let path = "picts/idk_anymore.png";
-    let image = AsciiImg::new_paralleled(path.to_string(), Some(100), None, false, false, false).unwrap();
+    let image = AsciiImg::new_parallel_file(path.to_string(), Some(100), None, false, false, false).unwrap();
     println!("{}", image);
     std::fs::write("thing", image.to_string()).unwrap();
 }

@@ -9,7 +9,7 @@ pub struct AsciiVid(pub Vec<AsciiImg>);
 
 impl AsciiVid {
     pub fn new_paralleled(
-        path: String,
+        path: &String,
         n_frames: Option<usize>,
         final_height: Option<usize>,
         final_width: Option<usize>,
@@ -76,7 +76,7 @@ impl AsciiVid {
     }
 
     pub fn new_sequential(
-        path: String,
+        path: &String,
         n_frames: Option<usize>,
         final_height: Option<usize>,
         final_width: Option<usize>,
@@ -141,6 +141,40 @@ impl AsciiVid {
                 .map(|x| AsciiImg(x))
                 .collect()))
     }
+
+    // pub fn new_parallel_file(
+    //     path: String,
+    //     target_height: Option<usize>,
+    //     target_width: Option<usize>,
+    //     invert: bool,
+    //     grayscale: bool,
+    //     uniform: bool,
+    // ) -> Result<Self, Error> {
+    //     let image = if grayscale {
+    //         ImageReader::open(path)?.decode()?.grayscale()
+    //     } else {
+    //         ImageReader::open(path)?.decode()?
+    //     };
+
+    //     Self::new_parallel(image, target_height, target_width, invert, grayscale, uniform)
+    // }
+
+    // pub fn new_sequential_file(
+    //     path: String,
+    //     target_height: Option<usize>,
+    //     target_width: Option<usize>,
+    //     invert: bool,
+    //     grayscale: bool,
+    //     uniform: bool,
+    // ) -> Result<Self, Error> {
+    //     let image = if grayscale {
+    //         ImageReader::open(path)?.decode()?.grayscale()
+    //     } else {
+    //         ImageReader::open(path)?.decode()?
+    //     };
+
+    //     Self::new_sequential(image, target_height, target_width, invert, grayscale, uniform)
+    // }
 }
 
 fn par_select_spaced_items<I>(iter: Vec<I>, n_frames_to_keep: Option<usize>) -> Vec<I>

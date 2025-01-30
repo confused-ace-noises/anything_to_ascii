@@ -1,8 +1,8 @@
-use std::{error::Error, fs, rc::Rc, sync::Arc};
-
+use std::{fs, rc::Rc, sync::Arc};
+use crate::Error;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-pub fn read_dir_no_parallel(read_path: String) -> Result<Vec<String>, Box<dyn Error>> {
+pub fn read_dir_no_parallel(read_path: String) -> Result<Vec<String>, Error> {
     let read_path = read_path.chars().rev().skip_while(|c| *c == '/').collect::<String>().chars().rev().collect::<String>();
 
     let dir = fs::read_dir(&read_path)?;
@@ -33,7 +33,7 @@ pub fn read_dir_no_parallel(read_path: String) -> Result<Vec<String>, Box<dyn Er
     Ok(vec_strings)
 }
 
-pub fn read_dir_parallel(read_path: String) -> Result<Vec<String>, Box<dyn Error>> {
+pub fn read_dir_parallel(read_path: String) -> Result<Vec<String>, Error> {
     let read_path = read_path.chars().rev().skip_while(|c| *c == '/').collect::<String>().chars().rev().collect::<String>();
     let dir = fs::read_dir(&read_path)?;
 
@@ -65,6 +65,14 @@ pub fn read_dir_parallel(read_path: String) -> Result<Vec<String>, Box<dyn Error
         .map(|path| fs::read_to_string(format!("{}/{}", Arc::clone(&read_path), path)).unwrap()).collect::<Vec<String>>();
 
     Ok(vec_strings)
+}
+
+pub fn read_video_from_api_file(path: &String) -> Result<Vec<String>, Error> {
+    let file = fs::read_to_string(path)?;
+
+    let frames = file.split("###").map(|x| x.to_string()).collect::<Vec<String>>();
+
+    Ok(frames)
 }
 
 trait FrameSort {

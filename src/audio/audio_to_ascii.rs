@@ -1,13 +1,28 @@
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use symphonia::{core::{audio::Signal, codecs::DecoderOptions, formats::FormatOptions, io::{MediaSourceStream, MediaSourceStreamOptions}, meta::MetadataOptions, probe::Hint}, default::{get_codecs, get_probe}};
+use std::fmt::Display;
 
-use crate::{core::{char::ColoredChar, flat_matrix::FlatMatrix}, Error};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use symphonia::{
+    core::{
+        audio::Signal,
+        codecs::DecoderOptions,
+        formats::FormatOptions,
+        io::{MediaSourceStream, MediaSourceStreamOptions},
+        meta::MetadataOptions,
+        probe::Hint,
+    },
+    default::{get_codecs, get_probe},
+};
+
+use crate::{
+    core::{char::ColoredChar, flat_matrix::FlatMatrix},
+    Error,
+};
 
 pub struct AsciiAudio(pub FlatMatrix<char>);
 
 impl AsciiAudio {
     pub fn new_parallel(
-        path: String,
+        path: &String,
         media_type: String,
         max_height: usize,
         uniform: bool,
@@ -18,8 +33,8 @@ impl AsciiAudio {
         let media_src_stream =
             MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
 
-        let mut hint = Hint::new();
-        hint.with_extension(&media_type);
+        let hint = Hint::new();
+        // hint.with_extension(&media_type);
 
         let probed = get_probe().format(
             &hint,
@@ -63,50 +78,55 @@ impl AsciiAudio {
             }
         }
 
+        println!("xx");
         let downscaled_samples: Vec<(u16, bool)> = samples
-        .into_par_iter()
-        .map(|sample| {
-            let sign = sample >= 0; // true if positive or 0
-            let magnitude = sample.abs() as u16;
-            (magnitude, sign)
-        })
-        .collect();
-    let height = max_height;
+            .into_par_iter()
+            .map(|sample| {
+                let sign = sample >= 0; // true if positive or 0
+                let magnitude = sample.abs() as u16;
+                (magnitude, sign)
+            })
+            .collect();
+        let height = max_height;
 
-    let midpoint = ((height*2) - 1) / 2;
+        let midpoint = ((height * 2) - 1) / 2;
 
-    let columns = downscaled_samples
-        .into_par_iter()
-        .map(|x| {
-            let x = (
-                (x.0 as f32 * (255.0 / height as f32)).round_ties_even() as u8,
-                x.1,
-            );
+        let columns = downscaled_samples
+            .into_par_iter()
+            .map(|x| {
+                let x = (
+                    (((x.0 as f32 / 255.0) * midpoint as f32).round_ties_even() as u8),
+                    x.1,
+                );
 
-            let char_used = {
-                let ch = ColoredChar::from_everything(x.0, (255, 255, 255), true, invert, uniform).ch;
+                println!("{:?}", x);
 
-                if ch == ' ' {
-                    '.'
+                let char_used = {
+                    let ch =
+                        ColoredChar::from_everything(x.0, (255, 255, 255), true, invert, uniform)
+                            .ch;
+
+                    if ch == ' ' {
+                        '.'
+                    } else {
+                        ch
+                    }
+                };
+                let mut column: Vec<char> = vec![' '; height as usize * 2];
+
+                if x.1 {
+                    for y in 0..x.0 {
+                        column[midpoint - y as usize] = char_used;
+                    }
                 } else {
-                    ch
+                    for y in 0..x.0 {
+                        column[midpoint + y as usize] = char_used;
+                    }
                 }
-            };
-            let mut column: Vec<char> = vec![' '; height as usize * 2];
 
-            if x.1 {
-                for y in 0..x.0 {
-                    column[midpoint - y as usize] = char_used;
-                }
-            } else {
-                for y in 0..x.0 {
-                    column[midpoint + y as usize] = char_used;
-                }
-            }
-
-            column
-        })
-        .collect::<FlatMatrix<_>>();
+                column
+            })
+            .collect::<FlatMatrix<_>>();
 
         // todo!()
 
@@ -116,7 +136,7 @@ impl AsciiAudio {
     }
 
     pub fn new_sequential(
-        path: String,
+        path: &String,
         media_type: String,
         max_height: usize,
         uniform: bool,
@@ -172,50 +192,65 @@ impl AsciiAudio {
             }
         }
 
-        let downscaled_samples: Vec<(u16, bool)> = samples
-        .into_iter()
-        .map(|sample| {
-            let sign = sample >= 0; // true if positive or 0
-            let magnitude = sample.abs() as u16;
-            (magnitude, sign)
-        })
-        .collect();
-    let height = max_height;
-
-    let midpoint = ((height*2) - 1) / 2;
-
-    let columns = downscaled_samples
-        .into_iter()
-        .map(|x| {
-            let x = (
-                (x.0 as f32 * (255.0 / height as f32)).round_ties_even() as u8,
-                x.1,
-            );
-
-            let char_used = {
-                let ch = ColoredChar::from_everything(x.0, (255, 255, 255), true, invert, uniform).ch;
-
-                if ch == ' ' {
-                    '.'
-                } else {
-                    ch
-                }
-            };
-            let mut column: Vec<char> = vec![' '; height as usize * 2];
-
-            if x.1 {
-                for y in 0..x.0 {
-                    column[midpoint - y as usize] = char_used;
-                }
-            } else {
-                for y in 0..x.0 {
-                    column[midpoint + y as usize] = char_used;
-                }
+        let mut max = 0;
+        samples.iter().for_each(|x| {
+            if *x > max {
+                max = *x
             }
+        });
 
-            column
-        })
-        .collect::<FlatMatrix<_>>();
+        let downscaled_samples: Vec<(u8, bool)> = samples
+            .into_iter()
+            .map(|sample| {
+                let sign = sample >= 0; // true if positive or 0
+                let magnitude =
+                    ((sample.abs() as f32 / max as f32) * 255.0).round_ties_even() as u8;
+                (magnitude, sign)
+            })
+            .collect();
+        let height = max_height;
+
+        let midpoint = ((height * 2) - 1) / 2;
+
+        let columns = downscaled_samples
+            .into_iter()
+            .map(|x| {
+                let char_used = {
+                    let ch =
+                        ColoredChar::from_everything(x.0, (255, 255, 255), true, invert, uniform)
+                            .ch;
+
+                    if ch == ' ' {
+                        '.'
+                    } else {
+                        ch
+                    }
+                };
+
+                print!("(");
+                print!("{:?}, ", x);
+                let x = (
+                    (((x.0 as f32 / 255.0) * midpoint as f32).round_ties_even() as u8),
+                    x.1,
+                );
+
+                print!("{:?}", x);
+                println!(")");
+                let mut column: Vec<char> = vec![' '; height as usize * 2];
+
+                if x.1 {
+                    for y in 0..x.0 {
+                        column[midpoint - y as usize] = char_used;
+                    }
+                } else {
+                    for y in 0..x.0 {
+                        column[midpoint + y as usize] = char_used;
+                    }
+                }
+
+                column
+            })
+            .collect::<FlatMatrix<_>>();
 
         // todo!()
 
@@ -224,3 +259,35 @@ impl AsciiAudio {
         Ok(Self(transposed))
     }
 }
+
+impl Display for AsciiAudio {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = self
+            .0
+            .into_iter_vecs()
+            .map(|x| {
+                x.into_iter()
+                    .map(|y| y.to_string())
+                    .collect::<Vec<_>>()
+                    .join("")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        write!(f, "{}", string)
+    }
+}
+
+#[test]
+fn test() {
+    let ascii_wave = AsciiAudio::new_sequential(
+        &"picts/beep-sound-short-237619.mp3".to_string(),
+        "mp3".to_string(),
+        255,
+        false,
+        false,
+    )
+    .unwrap();
+
+    println!("{}", ascii_wave)
+} // ......
