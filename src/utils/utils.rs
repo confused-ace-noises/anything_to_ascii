@@ -28,3 +28,10 @@ impl DemureUnwrap<usize> for (Option<usize>, Option<usize>) {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum Verbosity {
+    Silent,
+    Normal,
+    Verbose,
+}

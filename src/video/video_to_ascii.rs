@@ -3,7 +3,14 @@ use std::path::Path;
 use image::Rgba;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{core::{algo::{algo_parallel, algo_sequential}, flat_matrix::FlatMatrix}, image::image_to_ascii::AsciiImg, utils::utils::DemureUnwrap, Error};
+use crate::{
+    core::{
+        algo::{algo_parallel, algo_sequential},
+        flat_matrix::FlatMatrix,
+    }, image::image_to_ascii::AsciiImg, report, utils::utils::{DemureUnwrap, Verbosity}, Error
+};
+use indicatif::{ProgressBar, ProgressStyle};
+use crate::timestamp;
 
 pub struct AsciiVid(pub Vec<AsciiImg>);
 
@@ -16,15 +23,39 @@ impl AsciiVid {
         invert: bool,
         grayscale: bool,
         uniform: bool,
+        verbosity: Verbosity,
     ) -> Result<Self, Error> {
         video_rs::init().unwrap();
         let mut decoder = video_rs::Decoder::new(Path::new(&path))?;
 
-        let images = par_select_spaced_items(decoder
-            .decode_iter()
-            .take_while(|f| f.is_ok())
-            .map(|l| l.unwrap())
-            .collect::<Vec<_>>(), n_frames.and_then(|x| Some(x as usize)));
+        let images = par_select_spaced_items(
+            decoder
+                .decode_iter()
+                .take_while(|f| f.is_ok())
+                .map(|l| l.unwrap())
+                .collect::<Vec<_>>(),
+            n_frames.and_then(|x| Some(x as usize)),
+        );
+
+        let show_progress = {
+            if let Verbosity::Normal = verbosity {
+                true
+            } else {
+                false
+            }
+        };
+
+        let progress = if show_progress{
+            let progress = ProgressBar::new(images.len() as u64);
+            progress.set_style(
+                ProgressStyle::default_bar()
+                    .template("frame progress: [{bar:40.red/pink}] {pos:>3}/{len}")
+                    .unwrap(),
+            );
+            Some(progress)
+        } else {
+            None
+        };
 
         let ascii_images = images
             .into_par_iter()
@@ -45,7 +76,6 @@ impl AsciiVid {
 
                                 // let x = frame.data(index);
 
-
                                 Rgba::<u8>::from([x[0], x[1], x[2], 255])
                             })
                             .collect::<Vec<Rgba<u8>>>()
@@ -55,24 +85,35 @@ impl AsciiVid {
                 let (final_width, final_height) = (final_width, final_height)
                     .demure_unwrap(frame.shape()[1] as usize, frame.shape()[0] as usize);
 
-
-                println!("xxx");
-                algo_parallel(
+                // println!("xxx");
+                if let Some(prog) = &progress {prog.suspend(|| {
+                    report!(verbosity, @normal "executing parallel conversion algorithm on video frame...");
+                });}
+                
+                let out = algo_parallel(
                     x,
                     final_height as usize,
                     final_width as usize,
                     grayscale,
                     invert,
                     uniform,
-                )
+                    verbosity,
+                    false,
+                );
+                if let Some(prog) = &progress {prog.suspend(|| {
+                        report!(verbosity, @normal "finished executing parallel conversion algorithm on video frame");
+                    });
+                    prog.inc(1);
+                }
+                out
             })
             .collect::<Vec<_>>();
 
+        if let Some(prog) = progress {prog.finish()};
+
         Ok(Self(
-            ascii_images
-                .into_iter()
-                .map(|x| AsciiImg(x))
-                .collect()))
+            ascii_images.into_iter().map(|x| AsciiImg(x)).collect(),
+        ))
     }
 
     pub fn new_sequential(
@@ -83,15 +124,39 @@ impl AsciiVid {
         invert: bool,
         grayscale: bool,
         uniform: bool,
+        verbosity: Verbosity,
     ) -> Result<Self, Error> {
         video_rs::init().unwrap();
         let mut decoder = video_rs::Decoder::new(Path::new(&path))?;
 
-        let images = seq_select_spaced_items(decoder
-            .decode_iter()
-            .take_while(|f| f.is_ok())
-            .map(|l| l.unwrap())
-            .collect::<Vec<_>>(), n_frames.and_then(|x| Some(x as usize)));
+        let images = seq_select_spaced_items(
+            decoder
+                .decode_iter()
+                .take_while(|f| f.is_ok())
+                .map(|l| l.unwrap())
+                .collect::<Vec<_>>(),
+            n_frames.and_then(|x| Some(x as usize)),
+        );
+
+        let show_progress = {
+            if let Verbosity::Normal = verbosity {
+                true
+            } else {
+                false
+            }
+        };
+
+        let progress = if show_progress{
+            let progress = ProgressBar::new(images.len() as u64);
+            progress.set_style(
+                ProgressStyle::default_bar()
+                    .template("frame progress: [{bar:40.red/pink}] {pos:>3}/{len}")
+                    .unwrap(),
+            );
+            Some(progress)
+        } else {
+            None
+        };
 
         let ascii_images = images
             .into_iter()
@@ -112,7 +177,6 @@ impl AsciiVid {
 
                                 // let x = frame.data(index);
 
-
                                 Rgba::<u8>::from([x[0], x[1], x[2], 255])
                             })
                             .collect::<Vec<Rgba<u8>>>()
@@ -122,24 +186,37 @@ impl AsciiVid {
                 let (final_width, final_height) = (final_width, final_height)
                     .demure_unwrap(frame.shape()[1] as usize, frame.shape()[0] as usize);
 
-
-                println!("xxx");
-                algo_sequential(
+                // println!("xxx");
+                if let Some(prog) = &progress {prog.suspend(|| {
+                    report!(verbosity, @normal "executing parallel conversion algorithm on video frame...");
+                });}
+                
+                let out = algo_sequential(
                     x,
                     final_height as usize,
                     final_width as usize,
                     grayscale,
                     invert,
                     uniform,
-                )
+                    verbosity,
+                    false,
+                );
+                report!(verbosity, @normal "finished executing sequential conversion algorithm on video frame");
+
+                if let Some(prog) = &progress {prog.suspend(|| {
+                    report!(verbosity, @normal "finished executing parallel conversion algorithm on video frame");
+                });
+                    prog.inc(1);
+                }
+                out
             })
-            .collect::<Vec<_>>();
+               .collect::<Vec<_>>();
+
+        if let Some(prog) = progress {prog.finish()};
 
         Ok(Self(
-            ascii_images
-                .into_iter()
-                .map(|x| AsciiImg(x))
-                .collect()))
+            ascii_images.into_iter().map(|x| AsciiImg(x)).collect(),
+        ))
     }
 
     // pub fn new_parallel_file(
@@ -196,7 +273,7 @@ where
         (0..n_frames_to_keep)
             .into_par_iter() // Use parallel iterator from rayon
             .map(|i| {
-                let index = (i as f32*ratio).floor() as usize;
+                let index = (i as f32 * ratio).floor() as usize;
                 iter[index].clone()
             })
             .collect()
@@ -222,7 +299,7 @@ where
         (0..n_frames_to_keep)
             .into_iter() // Use parallel iterator from rayon
             .map(|i| {
-                let index = (i as f32*ratio).floor() as usize;
+                let index = (i as f32 * ratio).floor() as usize;
                 iter[index].clone()
             })
             .collect()

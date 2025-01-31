@@ -3,8 +3,14 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
+    #[arg(long, group = "verbosity-group", global = true)]
+    pub silent: bool,
+
+    #[arg(short, long, group = "verbosity-group", global = true)]
+    pub verbose: bool,
+
     #[command(subcommand)]
-    pub command: Commands
+    pub command: Commands,
 }
 
 #[derive(Subcommand, Clone, Debug)]

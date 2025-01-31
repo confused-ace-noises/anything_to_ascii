@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.5.23", features = ["derive"] }
+clap = { version = "4.5.27", features = ["derive"] }
 image = { version = "0.25.5", features = ["png", "jpeg", "gif"] }
 colored = "2.1.0"
 rayon = "1.10.0"
@@ -14,6 +14,7 @@ symphonia = { version = "0.5.4", features = ["aiff", "isomp4", "mkv", "ogg", "wa
 rocket = "0.5.1"
 thiserror = "2.0.10"
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
+indicatif = "0.17.11"
 
 [profile.release]
 opt-level = 3

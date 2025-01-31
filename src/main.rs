@@ -1,4 +1,6 @@
 use anything_to_ascii::api::api::*;
+use anything_to_ascii::report;
+use anything_to_ascii::utils::utils::Verbosity;
 use anything_to_ascii::{
     core::cli::*,
     prelude::{AsciiAudio, AsciiImg, AsciiVid},
@@ -8,10 +10,19 @@ use clap::Parser;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rocket::{routes, tokio, Config};
 use std::{error::Error, ffi::OsStr, fs, io::Write, path::Path, thread, time};
+use anything_to_ascii::timestamp;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    
+    report!(Verbosity::Normal, @normal "The program started fine. Depending on the file size, you may need to wait quite a lot of time for it to load.");
     let cli = Cli::parse();
+    let verbosity = match (cli.silent, cli.verbose) {
+        (true, false) => Verbosity::Silent,
+        (false, true) => Verbosity::Verbose, 
+        (false, false) => Verbosity::Normal,
+        (true, true) => panic!("...please message the creator, because something *very* weird just happened"),
+    };
     match cli.command {
         Commands::Api { no_parallel, port } => {
             let _ = build_rocket(no_parallel, port).launch().await;
@@ -30,9 +41,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let name = path;
 
             let x = if !no_parallel {
-                AsciiImg::new_parallel_file(name, height, width, invert, !colored, uniform_char)?
+                AsciiImg::new_parallel_file(name, height, width, invert, !colored, uniform_char, verbosity)?
             } else {
-                AsciiImg::new_sequential_file(name, height, width, invert, !colored, uniform_char)?
+                AsciiImg::new_sequential_file(name, height, width, invert, !colored, uniform_char, verbosity)?
             };
 
             match savepath {
@@ -62,6 +73,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     invert,
                     !colored,
                     uniform_char,
+                    verbosity
                 )?
             } else {
                 AsciiVid::new_sequential(
@@ -72,6 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     invert,
                     !colored,
                     uniform_char,
+                    verbosity
                 )?
             };
 

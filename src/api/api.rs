@@ -5,6 +5,7 @@ use rocket::data::ByteUnit;
 use rocket::{post, Data};
 use rocket::tokio::io::AsyncReadExt;
 use crate::prelude::{AsciiAudio, AsciiImg, AsciiVid};
+use crate::utils::utils::Verbosity;
 use xxhash_rust::xxh3::xxh3_128;
 
 
@@ -42,7 +43,7 @@ pub async fn api_img_to_ascii_parallel(
     println!("Image loaded with dimensions: {:?}", image.dimensions());
 
     // Process the image and return its ASCII representation
-    let ascii_image = AsciiImg::new_parallel(image, height, width, invert, !colored, uniform)
+    let ascii_image = AsciiImg::new_parallel(image, height, width, invert, !colored, uniform, Verbosity::Normal)
         .unwrap();
 
     ascii_image.to_string()
@@ -80,7 +81,7 @@ pub async fn api_img_to_ascii_sequential(
     println!("Image loaded with dimensions: {:?}", image.dimensions());
 
     // Process the image and return its ASCII representation
-    let ascii_image = AsciiImg::new_sequential(image, height, width, invert, !colored, uniform)
+    let ascii_image = AsciiImg::new_sequential(image, height, width, invert, !colored, uniform, Verbosity::Normal)
         .unwrap();
 
     ascii_image.to_string()
@@ -112,7 +113,7 @@ pub async fn api_video_to_ascii_parallel(
     std::fs::write(&video_path, buffer).unwrap();
     
     
-    let vid_ascii = AsciiVid::new_paralleled(&video_path, nframes, height, width, invert, !colored, uniform);
+    let vid_ascii = AsciiVid::new_paralleled(&video_path, nframes, height, width, invert, !colored, uniform, Verbosity::Normal);
     
     #[allow(unused_must_use)]
     fs::remove_file(video_path);
@@ -153,7 +154,7 @@ pub async fn api_video_to_ascii_sequential(
     std::fs::write(&video_path, buffer).unwrap();
     
     
-    let vid_ascii = AsciiVid::new_sequential(&video_path, nframes, height, width, invert, !colored, uniform);
+    let vid_ascii = AsciiVid::new_sequential(&video_path, nframes, height, width, invert, !colored, uniform, Verbosity::Normal);
 
     #[allow(unused_must_use)]
     fs::remove_file(video_path);
@@ -194,7 +195,7 @@ pub async fn api_audio_to_ascii_parallel(
     let temp_dir = env::temp_dir();
     let audio_path = temp_dir.join(format!("received_audio:{}.{}", hash, mediatype)).to_string_lossy().to_string();
 
-    std::fs::write(&audio_path, buffer).unwrap();//.
+    std::fs::write(&audio_path, buffer).unwrap();
     
     let ascii_wave = AsciiAudio::new_parallel(&audio_path, mediatype, height.unwrap_or(255), uniform, invert);
 
@@ -232,7 +233,7 @@ pub async fn api_audio_to_ascii_sequential(
     let temp_dir = env::temp_dir();
     let audio_path = temp_dir.join(format!("received_audio:.{}.{}", hash, mediatype)).to_string_lossy().to_string();
 
-    std::fs::write(&audio_path, buffer).unwrap();//.
+    std::fs::write(&audio_path, buffer).unwrap();
     
     let ascii_wave = AsciiAudio::new_sequential(&audio_path, mediatype, height.unwrap_or(255), uniform, invert);
 
@@ -247,4 +248,3 @@ pub async fn api_audio_to_ascii_sequential(
 
     ascii
 }
-//..
