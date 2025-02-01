@@ -61,7 +61,7 @@ defines whether the ASCII arts should have ANSI encoded colors or not; default: 
 ***
 
 ### Audio to ASCII
-**description**: given a video as binary data, processes into ASCII art. Each frame is separated in the response with a `###`
+**description**: given an audio as binary data, processes into ASCII art of the waveform.
 
 **endpoint:** `/api/audio_to_ascii`
 
@@ -70,13 +70,11 @@ defines whether the ASCII arts should have ANSI encoded colors or not; default: 
 **parameters:**
 - **height (not present; positive 8-bit integer)**: defines the height of <ins> half </ins> of the characters of the resulting ASCII art; corresponds to the height of the highest peak in the waveform from silence; if not present, it'll default to 255.
 
-- **mediatype (string)**: defines the type of audio being used; eg: mp3; <ins> NOT optional </ins>
-
 - **invert (not present; present with no associated value; bool)**: defines whether the ASCII arts' luminosity should be inverted: the most luminous spots will use the least dense characters, and vice versa; default: false; present with no associated value: true.
 
 - **uniform (not present; present with no associated value; bool)**: defines whether the ASCII arts should be made all out of the densest character; when paired with **invert**, only uses the least dense character; default: false; present with no associated value: true.
 
-**example**: `curl -X POST http://localhost:8000/api/audio_to_ascii?mediatype=mp3&uniform --data-binary @audio.mp3`
+**example**: `curl -X POST http://localhost:8000/api/audio_to_ascii?height=100&uniform --data-binary @audio.mp3`
 
 ## Foot Notes
 

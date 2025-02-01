@@ -172,11 +172,11 @@ pub async fn api_video_to_ascii_sequential(
 // uniform: bool,
 // invert: bool,
 
-#[post("/api/audio_to_ascii?<mediatype>&<height>&<invert>&<uniform>", data = "<data>")]
+#[post("/api/audio_to_ascii?<height>&<invert>&<uniform>", data = "<data>")]
 pub async fn api_audio_to_ascii_parallel(
     data: Data<'_>,
     height: Option<usize>,
-    mediatype: String,
+    // mediatype: String,
     invert: bool,
     uniform: bool,
 ) -> String {
@@ -193,11 +193,11 @@ pub async fn api_audio_to_ascii_parallel(
     
     // Save the received video data to a temporary file
     let temp_dir = env::temp_dir();
-    let audio_path = temp_dir.join(format!("received_audio:{}.{}", hash, mediatype)).to_string_lossy().to_string();
+    let audio_path = temp_dir.join(format!("received_audio:{}.mp3", hash)).to_string_lossy().to_string();
 
     std::fs::write(&audio_path, buffer).unwrap();
     
-    let ascii_wave = AsciiAudio::new_parallel(&audio_path, mediatype, height.unwrap_or(255), uniform, invert);
+    let ascii_wave = AsciiAudio::new_parallel(&audio_path, height.unwrap_or(255), uniform, invert, Verbosity::Normal);
 
     #[allow(unused_must_use)]
     fs::remove_file(audio_path);
@@ -210,11 +210,10 @@ pub async fn api_audio_to_ascii_parallel(
     ascii
 }
 
-#[post("/api/audio_to_ascii?<mediatype>&<height>&<invert>&<uniform>", data = "<data>")]
+#[post("/api/audio_to_ascii?<height>&<invert>&<uniform>", data = "<data>")]
 pub async fn api_audio_to_ascii_sequential(
     data: Data<'_>,
     height: Option<usize>,
-    mediatype: String,
     invert: bool,
     uniform: bool,
 ) -> String {
@@ -231,11 +230,11 @@ pub async fn api_audio_to_ascii_sequential(
     
     // Save the received video data to a temporary file
     let temp_dir = env::temp_dir();
-    let audio_path = temp_dir.join(format!("received_audio:.{}.{}", hash, mediatype)).to_string_lossy().to_string();
+    let audio_path = temp_dir.join(format!("received_audio:.{}.mp3", hash)).to_string_lossy().to_string();
 
     std::fs::write(&audio_path, buffer).unwrap();
     
-    let ascii_wave = AsciiAudio::new_sequential(&audio_path, mediatype, height.unwrap_or(255), uniform, invert);
+    let ascii_wave = AsciiAudio::new_sequential(&audio_path, height.unwrap_or(255), uniform, invert, Verbosity::Normal);
 
 
     #[allow(unused_must_use)]
@@ -248,3 +247,5 @@ pub async fn api_audio_to_ascii_sequential(
 
     ascii
 }
+
+// apk ...........................................

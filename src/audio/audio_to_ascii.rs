@@ -14,8 +14,7 @@ use symphonia::{
 };
 
 use crate::{
-    core::{char::ColoredChar, flat_matrix::FlatMatrix},
-    Error,
+    core::{char::ColoredChar, flat_matrix::FlatMatrix}, report, utils::utils::Verbosity, Error, timestamp
 };
 
 pub struct AsciiAudio(pub FlatMatrix<char>);
@@ -23,13 +22,14 @@ pub struct AsciiAudio(pub FlatMatrix<char>);
 impl AsciiAudio {
     pub fn new_parallel(
         path: &String,
-        media_type: String,
         max_height: usize,
         uniform: bool,
         invert: bool,
+        verbosity: Verbosity,
     ) -> Result<Self, Error> {
         let file = std::fs::File::open(path)?;
 
+        report!(verbosity, @verbose "probing for file and media type...");
         let media_src_stream =
             MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
 
@@ -43,7 +43,10 @@ impl AsciiAudio {
             &MetadataOptions::default(),
         )?;
         let mut format = probed.format;
+        report!(verbosity, @verbose "finished probing for file and media type...");
 
+
+        report!(verbosity, @verbose "getting tracks and decoder...");
         let track = format
             .tracks()
             .iter()
@@ -51,10 +54,12 @@ impl AsciiAudio {
             .ok_or("No supported audio tracks found")?;
         let track_id = track.id;
         let mut decoder = get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
+        report!(verbosity, @verbose "finished getting tracks and decoder");
 
         // Storage for samples
         let mut samples = Vec::new();
 
+        report!(verbosity, @verbose "decoding packets...");
         // Decode packets and collect samples
         while let Ok(packet) = format.next_packet() {
             if packet.track_id() == track_id {
@@ -77,8 +82,10 @@ impl AsciiAudio {
                 }
             }
         }
+        report!(verbosity, @verbose "finished decoding packets");
 
-        println!("xx");
+        // println!("xx");
+        report!(verbosity, @normal "downscaling samples...");
         let downscaled_samples: Vec<(u16, bool)> = samples
             .into_par_iter()
             .map(|sample| {
@@ -90,7 +97,9 @@ impl AsciiAudio {
         let height = max_height;
 
         let midpoint = ((height * 2) - 1) / 2;
+        report!(verbosity, @normal "finished downscaling samples");
 
+        report!(verbosity, @normal "starting general conversion algorithm...");
         let columns = downscaled_samples
             .into_par_iter()
             .map(|x| {
@@ -99,7 +108,7 @@ impl AsciiAudio {
                     x.1,
                 );
 
-                println!("{:?}", x);
+                // println!("{:?}", x);
 
                 let char_used = {
                     let ch =
@@ -112,6 +121,9 @@ impl AsciiAudio {
                         ch
                     }
                 };
+
+                report!(verbosity, @verbose "got character! {}", char_used);
+
                 let mut column: Vec<char> = vec![' '; height as usize * 2];
 
                 if x.1 {
@@ -127,8 +139,7 @@ impl AsciiAudio {
                 column
             })
             .collect::<FlatMatrix<_>>();
-
-        // todo!()
+        report!(verbosity, @normal "finished general conversion algorithm");
 
         let transposed = columns.transpose();
 
@@ -137,18 +148,20 @@ impl AsciiAudio {
 
     pub fn new_sequential(
         path: &String,
-        media_type: String,
+        // media_type: String,
         max_height: usize,
         uniform: bool,
         invert: bool,
+        verbosity: Verbosity,
     ) -> Result<Self, Error> {
         let file = std::fs::File::open(path)?;
 
+        report!(verbosity, @verbose "probing for file and media type...");
         let media_src_stream =
             MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
 
-        let mut hint = Hint::new();
-        hint.with_extension(&media_type);
+        let hint = Hint::new();
+        // hint.with_extension(&media_type);
 
         let probed = get_probe().format(
             &hint,
@@ -157,7 +170,9 @@ impl AsciiAudio {
             &MetadataOptions::default(),
         )?;
         let mut format = probed.format;
+        report!(verbosity, @verbose "finished probing for file and media type...");
 
+        report!(verbosity, @verbose "getting tracks and decoder...");
         let track = format
             .tracks()
             .iter()
@@ -165,10 +180,12 @@ impl AsciiAudio {
             .ok_or("No supported audio tracks found")?;
         let track_id = track.id;
         let mut decoder = get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
+        report!(verbosity, @verbose "getting tracks and decoder...");
 
         // Storage for samples
         let mut samples = Vec::new();
 
+        report!(verbosity, @verbose "decoding packets...");
         // Decode packets and collect samples
         while let Ok(packet) = format.next_packet() {
             if packet.track_id() == track_id {
@@ -191,30 +208,33 @@ impl AsciiAudio {
                 }
             }
         }
+        report!(verbosity, @verbose "finished decoding packets");
 
-        let mut max = 0;
-        samples.iter().for_each(|x| {
-            if *x > max {
-                max = *x
-            }
-        });
-
-        let downscaled_samples: Vec<(u8, bool)> = samples
+        report!(verbosity, @normal "downscaling samples...");
+        let downscaled_samples: Vec<(u16, bool)> = samples
             .into_iter()
             .map(|sample| {
                 let sign = sample >= 0; // true if positive or 0
-                let magnitude =
-                    ((sample.abs() as f32 / max as f32) * 255.0).round_ties_even() as u8;
+                let magnitude = sample.abs() as u16;
                 (magnitude, sign)
             })
             .collect();
         let height = max_height;
 
         let midpoint = ((height * 2) - 1) / 2;
+        report!(verbosity, @normal "finished downscaling samples");
 
+        report!(verbosity, @normal "starting general conversion algorithm...");
         let columns = downscaled_samples
             .into_iter()
             .map(|x| {
+                let x = (
+                    (((x.0 as f32 / 255.0) * midpoint as f32).round_ties_even() as u8),
+                    x.1,
+                );
+
+                // println!("{:?}", x);
+
                 let char_used = {
                     let ch =
                         ColoredChar::from_everything(x.0, (255, 255, 255), true, invert, uniform)
@@ -227,15 +247,8 @@ impl AsciiAudio {
                     }
                 };
 
-                print!("(");
-                print!("{:?}, ", x);
-                let x = (
-                    (((x.0 as f32 / 255.0) * midpoint as f32).round_ties_even() as u8),
-                    x.1,
-                );
+                report!(verbosity, @verbose "got character! {}", char_used);
 
-                print!("{:?}", x);
-                println!(")");
                 let mut column: Vec<char> = vec![' '; height as usize * 2];
 
                 if x.1 {
@@ -251,8 +264,7 @@ impl AsciiAudio {
                 column
             })
             .collect::<FlatMatrix<_>>();
-
-        // todo!()
+        report!(verbosity, @normal "finished general conversion algorithm");
 
         let transposed = columns.transpose();
 
@@ -282,10 +294,10 @@ impl Display for AsciiAudio {
 fn test() {
     let ascii_wave = AsciiAudio::new_sequential(
         &"picts/beep-sound-short-237619.mp3".to_string(),
-        "mp3".to_string(),
         255,
         false,
         false,
+        Verbosity::Normal
     )
     .unwrap();
 

@@ -24,7 +24,7 @@ macro_rules! report {
         match $verbosity {
             Verbosity::Silent => (),
             _ => {
-                print!("[NORMAL; {:02}:{:02}:{:02}.{:03}]", time.0, time.1, time.2, time.3);
+                print!("[NORMAL; {:02}:{:02}:{:02}.{:03}]\t", time.0, time.1, time.2, time.3);
                 println!($($message),+)
             }
         }
@@ -35,7 +35,7 @@ macro_rules! report {
         
         match $verbosity {
             Verbosity::Verbose => {
-                print!("[VERBOSE; {:02}:{:02}:{:02}.{:03}]", time.0, time.1, time.2, time.3);
+                print!("[VERBOSE; {:02}:{:02}:{:02}.{:03}]\t", time.0, time.1, time.2, time.3);
                 println!($($message),+)
             },
             _ => ()

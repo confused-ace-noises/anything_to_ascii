@@ -132,23 +132,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
             savepath,
             uniform_char,
             no_parallel,
-            media_type,
         } => {
             let waveform = if !no_parallel {
                 AsciiAudio::new_parallel(
                     &path,
-                    media_type,
                     height.unwrap_or(255),
                     uniform_char,
                     invert,
+                    verbosity,
                 )?
             } else {
                 AsciiAudio::new_sequential(
                     &path,
-                    media_type,
                     height.unwrap_or(255),
                     uniform_char,
                     invert,
+                    verbosity
                 )?
             };
 

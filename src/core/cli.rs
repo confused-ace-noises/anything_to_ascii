@@ -129,9 +129,9 @@ pub enum Commands {
          #[arg(long = "no-parallel")]
          no_parallel: bool,
 
-         /// specifies the audio type. (eg: mp3, ogg, etc...)
-         #[arg(long, short)]
-         media_type: String,
+        //  /// specifies the audio type. (eg: mp3, ogg, etc...)
+        //  #[arg(long, short)]
+        //  media_type: String,
     },
 
     /// Read a folder with frames created by the video command, and then show them in the terminal.

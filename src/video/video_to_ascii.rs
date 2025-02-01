@@ -25,9 +25,13 @@ impl AsciiVid {
         uniform: bool,
         verbosity: Verbosity,
     ) -> Result<Self, Error> {
+        report!(verbosity, @verbose "starting ffmpeg...");
         video_rs::init().unwrap();
+        report!(verbosity, @verbose "ffmpeg started");
+
         let mut decoder = video_rs::Decoder::new(Path::new(&path))?;
 
+        report!(verbosity, @verbose "getting frames...");
         let images = par_select_spaced_items(
             decoder
                 .decode_iter()
@@ -36,6 +40,7 @@ impl AsciiVid {
                 .collect::<Vec<_>>(),
             n_frames.and_then(|x| Some(x as usize)),
         );
+        report!(verbosity, @verbose "finished getting frames");
 
         let show_progress = {
             if let Verbosity::Normal = verbosity {
@@ -57,6 +62,7 @@ impl AsciiVid {
             None
         };
 
+        report!(verbosity, @normal "starting general conversion algorithm");
         let ascii_images = images
             .into_par_iter()
             .map(|frame| {
@@ -108,6 +114,7 @@ impl AsciiVid {
                 out
             })
             .collect::<Vec<_>>();
+        report!(verbosity, @normal "finished general conversion algorithm");
 
         if let Some(prog) = progress {prog.finish()};
 
@@ -126,9 +133,13 @@ impl AsciiVid {
         uniform: bool,
         verbosity: Verbosity,
     ) -> Result<Self, Error> {
+        report!(verbosity, @verbose "starting ffmpeg...");
         video_rs::init().unwrap();
+        report!(verbosity, @verbose "ffmpeg started");
+        
         let mut decoder = video_rs::Decoder::new(Path::new(&path))?;
 
+        report!(verbosity, @verbose "getting frames...");
         let images = seq_select_spaced_items(
             decoder
                 .decode_iter()
@@ -137,6 +148,7 @@ impl AsciiVid {
                 .collect::<Vec<_>>(),
             n_frames.and_then(|x| Some(x as usize)),
         );
+        report!(verbosity, @verbose "finished getting frames");
 
         let show_progress = {
             if let Verbosity::Normal = verbosity {
@@ -158,6 +170,7 @@ impl AsciiVid {
             None
         };
 
+        report!(verbosity, @normal "starting general conversion algorithm");
         let ascii_images = images
             .into_iter()
             .map(|frame| {
@@ -211,6 +224,8 @@ impl AsciiVid {
                 out
             })
                .collect::<Vec<_>>();
+        report!(verbosity, @normal "finished general conversion algorithm");
+
 
         if let Some(prog) = progress {prog.finish()};
 
@@ -258,6 +273,8 @@ fn par_select_spaced_items<I>(iter: Vec<I>, n_frames_to_keep: Option<usize>) -> 
 where
     I: Send + Sync + Clone,
 {
+
+
     let len = iter.len();
     //let iter = iter.into_par_iter();
 

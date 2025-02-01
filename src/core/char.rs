@@ -1,11 +1,12 @@
 use colored::{Color, Colorize, CustomColor};
 use image::Rgba;
 
+/// ## Info the character selector and the one that prints the ANSI colors if `colored`.
 #[derive(Debug, Clone)]
 pub struct ColoredChar {
     pub color: CustomColor,
     pub ch: char,
-    pub density: u8, 
+    pub density: u8,
     pub display: bool,
 }
 
@@ -27,7 +28,13 @@ impl ColoredChar {
     pub const CHAR221_238: char = 'Q';
     pub const CHAR238_255: char = '@';
 
-    pub fn from_everything(density: u8, color: (u8, u8, u8), mut display: bool, invert: bool, uniform: bool) -> ColoredChar {
+    pub fn from_everything(
+        density: u8,
+        color: (u8, u8, u8),
+        display: bool,
+        invert: bool,
+        uniform: bool,
+    ) -> ColoredChar {
         let ch: char = {
             if uniform && invert {
                 Self::CHAR_EMPTY
@@ -37,7 +44,7 @@ impl ColoredChar {
                 if !invert {
                     match density {
                         0 => {
-                            display = false;
+                            // display = false;
                             Self::CHAR_EMPTY
                         }
                         1..17 => Self::CHAR0_17,
@@ -74,7 +81,7 @@ impl ColoredChar {
                         221..238 => Self::CHAR17_34,
                         238..255 => Self::CHAR0_17,
                         255 => {
-                            display = false;
+                            // display = false;
                             Self::CHAR_EMPTY
                         }
                     }
@@ -82,7 +89,16 @@ impl ColoredChar {
             }
         };
 
-        ColoredChar { color: CustomColor { r: color.0, g: color.1, b: color.2 }, ch, density, display }
+        ColoredChar {
+            color: CustomColor {
+                r: color.0,
+                g: color.1,
+                b: color.2,
+            },
+            ch,
+            density,
+            display,
+        }
     }
 
     pub fn from_color(color: Rgba<u8>, grayscale: bool, invert: bool, uniform: bool) -> Self {
@@ -91,53 +107,57 @@ impl ColoredChar {
         let brightness = color.calc_penalty();
 
         let ch: char = {
-            if uniform && invert {
+            if color.0[3] == 0 {
                 Self::CHAR_EMPTY
-            } else if uniform {
-                Self::CHAR238_255
             } else {
-                if !invert {
-                    match brightness {
-                        0 => {
-                            display = false;
-                            Self::CHAR_EMPTY
-                        }
-                        1..17 => Self::CHAR0_17,
-                        17..34 => Self::CHAR17_34,
-                        34..51 => Self::CHAR34_51,
-                        51..68 => Self::CHAR51_68,
-                        68..85 => Self::CHAR68_85,
-                        85..102 => Self::CHAR85_102,
-                        102..119 => Self::CHAR102_119,
-                        119..136 => Self::CHAR119_136,
-                        136..153 => Self::CHAR136_153,
-                        153..170 => Self::CHAR153_170,
-                        170..187 => Self::CHAR170_187,
-                        187..204 => Self::CHAR187_204,
-                        204..221 => Self::CHAR204_221,
-                        221..238 => Self::CHAR221_238,
-                        238..=255 => Self::CHAR238_255,
-                    }
+                if uniform && invert {
+                    Self::CHAR_EMPTY
+                } else if uniform {
+                    Self::CHAR238_255
                 } else {
-                    match brightness {
-                        0..17 => Self::CHAR238_255,
-                        17..34 => Self::CHAR221_238,
-                        34..51 => Self::CHAR204_221,
-                        51..68 => Self::CHAR187_204,
-                        68..85 => Self::CHAR170_187,
-                        85..102 => Self::CHAR153_170,
-                        102..119 => Self::CHAR136_153,
-                        119..136 => Self::CHAR119_136,
-                        136..153 => Self::CHAR102_119,
-                        153..170 => Self::CHAR85_102,
-                        170..187 => Self::CHAR68_85,
-                        187..204 => Self::CHAR51_68,
-                        204..221 => Self::CHAR34_51,
-                        221..238 => Self::CHAR17_34,
-                        238..255 => Self::CHAR0_17,
-                        255 => {
-                            display = false;
-                            Self::CHAR_EMPTY
+                    if !invert {
+                        match brightness {
+                            0 => {
+                                display = false;
+                                Self::CHAR_EMPTY
+                            }
+                            1..17 => Self::CHAR0_17,
+                            17..34 => Self::CHAR17_34,
+                            34..51 => Self::CHAR34_51,
+                            51..68 => Self::CHAR51_68,
+                            68..85 => Self::CHAR68_85,
+                            85..102 => Self::CHAR85_102,
+                            102..119 => Self::CHAR102_119,
+                            119..136 => Self::CHAR119_136,
+                            136..153 => Self::CHAR136_153,
+                            153..170 => Self::CHAR153_170,
+                            170..187 => Self::CHAR170_187,
+                            187..204 => Self::CHAR187_204,
+                            204..221 => Self::CHAR204_221,
+                            221..238 => Self::CHAR221_238,
+                            238..=255 => Self::CHAR238_255,
+                        }
+                    } else {
+                        match brightness {
+                            0..17 => Self::CHAR238_255,
+                            17..34 => Self::CHAR221_238,
+                            34..51 => Self::CHAR204_221,
+                            51..68 => Self::CHAR187_204,
+                            68..85 => Self::CHAR170_187,
+                            85..102 => Self::CHAR153_170,
+                            102..119 => Self::CHAR136_153,
+                            119..136 => Self::CHAR119_136,
+                            136..153 => Self::CHAR102_119,
+                            153..170 => Self::CHAR85_102,
+                            170..187 => Self::CHAR68_85,
+                            187..204 => Self::CHAR51_68,
+                            204..221 => Self::CHAR34_51,
+                            221..238 => Self::CHAR17_34,
+                            238..255 => Self::CHAR0_17,
+                            255 => {
+                                display = false;
+                                Self::CHAR_EMPTY
+                            }
                         }
                     }
                 }
@@ -152,7 +172,12 @@ impl ColoredChar {
             CustomColor::new(color.0[0], color.0[1], color.0[2])
         };
 
-        ColoredChar { color, ch, display, density: brightness }
+        ColoredChar {
+            color,
+            ch,
+            display,
+            density: brightness,
+        }
     }
 
     pub fn is_grayscale(&self) -> bool {
@@ -164,6 +189,9 @@ impl ColoredChar {
     }
 }
 
+
+/// ## Info 
+/// extension trait used to calculate the brightness penalty as the alpha channel becomes higher.
 pub trait Penalty {
     fn calc_penalty(&self) -> u8;
 }
@@ -185,7 +213,10 @@ pub trait Concat {
 
 impl Concat for Vec<ColoredChar> {
     fn concat(self) -> String {
-        self.into_iter().map(|c| c.to_string()).collect::<Vec<_>>().concat()
+        self.into_iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<_>>()
+            .concat()
     }
 }
 
@@ -195,7 +226,19 @@ impl std::fmt::Display for ColoredChar {
             let color = self.color;
             let char = self.ch;
 
-            if self.is_grayscale() { write!(f, "{}", char) } else { write!(f, "{}", char.to_string().color(Color::TrueColor { r: color.r, g: color.g, b: color.b })) }
+            if self.is_grayscale() {
+                write!(f, "{}", char)
+            } else {
+                write!(
+                    f,
+                    "{}",
+                    char.to_string().color(Color::TrueColor {
+                        r: color.r,
+                        g: color.g,
+                        b: color.b
+                    })
+                )
+            }
         } else {
             Ok(())
         }

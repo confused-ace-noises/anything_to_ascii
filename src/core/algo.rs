@@ -6,6 +6,18 @@ use crate::{report, utils::utils::Verbosity, timestamp};
 
 use super::{char::ColoredChar, flat_matrix::FlatMatrix};
 
+/// ## Info
+/// the parallel version of the library's core algorithm. This essentially takes in a [`FlatMatrix`] of [Rgba], and makes some magic to get 
+/// as close as possible to the `target_height` and `target_width`. 
+/// 
+/// ## Note
+/// This algorithm is very good, but it isn't magic: it'll just put spaces where it cant figure out what to put, be it out of bounds accesses
+/// or transparent pixels.
+/// 
+/// ## Args
+/// `grayscale`: [ `false`: with colors; `true`: no colors ];
+/// `uniform`: [ `false`: different chars; `true`: all the brightest or dimmest chars, depending on `invert` ]
+/// `invert` : [ `false` : keep normal; `true`: invert dim with bright and vice-versa]
 pub fn algo_parallel(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_width: usize, grayscale: bool, uniform: bool, invert: bool, verbosity: Verbosity, progress: bool) -> FlatMatrix<ColoredChar> {
     let src_height = pixels.rows; 
     let src_width = pixels.columns;
@@ -62,9 +74,9 @@ pub fn algo_parallel(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_
                 
                 let density = (big_px_to_average.0.3 / dividend).round_ties_even() as u8;
                 
-                let display = big_px_to_average.0.4;
+                // let display = big_px_to_average.0.4;
                 
-                ColoredChar::from_everything(density, (r, g, b), display, invert, uniform)
+                ColoredChar::from_everything(density, (r, g, b), true, invert, uniform)
             };
 
             if let Some(prog) = &progress {prog.inc(1)};
@@ -88,6 +100,18 @@ pub fn algo_parallel(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_
     final_matrix
 }
 
+/// ## Info
+/// the sequential (not parallel) version of the library's core algorithm. This essentially takes in a [`FlatMatrix`] of [Rgba], and makes some magic to get 
+/// as close as possible to the `target_height` and `target_width`. 
+/// 
+/// ## Note
+/// This algorithm is very good, but it isn't magic: it'll just put spaces where it cant figure out what to put, be it out of bounds accesses
+/// or transparent pixels.
+/// 
+/// ## Args
+/// `grayscale`: [ `false`: with colors; `true`: no colors ];
+/// `uniform`: [ `false`: different chars; `true`: all the brightest or dimmest chars, depending on `invert` ]
+/// `invert` : [ `false` : keep normal; `true`: invert dim with bright and vice-versa]
 pub fn algo_sequential(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, target_width: usize, grayscale: bool, uniform: bool, invert: bool, verbosity: Verbosity, progress: bool) -> FlatMatrix<ColoredChar> {
     let src_height = pixels.rows; 
     let src_width = pixels.columns;
@@ -146,9 +170,9 @@ pub fn algo_sequential(pixels: FlatMatrix<Rgba<u8>>, target_height: usize, targe
 
                 let density = (big_px_to_average.0.3 / dividend).round_ties_even() as u8;
 
-                let display = big_px_to_average.0.4;
+                // let display = big_px_to_average.0.4;
 
-                ColoredChar::from_everything(density, (r, g, b), display, invert, uniform)
+                ColoredChar::from_everything(density, (r, g, b), true, invert, uniform)
             };
 
             if let Some(prog) = &progress {prog.inc(1)};
